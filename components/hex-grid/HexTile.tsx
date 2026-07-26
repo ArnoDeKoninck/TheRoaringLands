@@ -47,7 +47,8 @@ export default function HexTile({
       width={w}
       height={h}
       viewBox={`0 0 ${w} ${h}`}
-      style={{ position: 'absolute', left: x, top: y, cursor: 'pointer' }}
+      draggable={false}
+      style={{ position: 'absolute', left: x, top: y, cursor: 'inherit', userSelect: 'none' }}
       onClick={onClick}
       onDrop={onDrop}
       onDragOver={onDragOver}
@@ -69,6 +70,7 @@ export default function HexTile({
           fontWeight="700"
           fill="oklch(0.12 0.01 260)"
           opacity={isDmFogged ? 0.6 : 1}
+          style={{ pointerEvents: 'none' }}
         >
           {tileType.code}
         </text>
