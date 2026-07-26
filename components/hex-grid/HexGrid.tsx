@@ -3,7 +3,7 @@ import { useRef, useCallback, useState, useEffect, useMemo } from 'react'
 import { useGame } from '@/components/providers/GameProvider'
 import HexTile from './HexTile'
 import PlacingPill from './PlacingPill'
-import { hexToPixel, gridPixelSize, colRowToKey } from '@/lib/hex-math'
+import { hexToPixel, gridPixelSize, colRowToKey, hexDistance } from '@/lib/hex-math'
 import { placeTile } from '@/actions/map'
 import type { MapTile, TileType } from '@/lib/types'
 
@@ -105,10 +105,14 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
     handleHexClick(col, row, tileId)
   }
 
-  // Build cell list
+  // Build cell list — for circular maps filter to radius_hexes from center
+  const circRadius = activeMap.radius_hexes
+  const circCenterCol = Math.floor(cols / 2)
+  const circCenterRow = Math.floor(rows / 2)
   const hexes: Array<{ col: number; row: number; key: string }> = []
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
+      if (circRadius != null && hexDistance(col, row, circCenterCol, circCenterRow) > circRadius) continue
       hexes.push({ col, row, key: colRowToKey(col, row) })
     }
   }

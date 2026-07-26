@@ -13,6 +13,8 @@ export interface GameMap {
   grid_cols: number
   grid_rows: number
   hex_radius: number
+  campaign: string | null
+  radius_hexes: number | null
   created_at: string
 }
 

@@ -48,8 +48,19 @@ export default function MapSwitcher() {
           onChange={e => handleMapChange(e.target.value)}
           style={selectStyle}
         >
-          {maps.map((m: GameMap) => (
-            <option key={m.id} value={m.id}>{m.name}</option>
+          {Array.from(
+            maps.reduce((acc, m) => {
+              const group = m.campaign ?? 'Maps'
+              if (!acc.has(group)) acc.set(group, [])
+              acc.get(group)!.push(m)
+              return acc
+            }, new Map<string, GameMap[]>())
+          ).map(([campaign, groupMaps]) => (
+            <optgroup key={campaign} label={campaign}>
+              {groupMaps.map((m: GameMap) => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </optgroup>
           ))}
         </select>
         {isDm && (

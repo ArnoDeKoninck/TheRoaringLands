@@ -39,6 +39,13 @@ export function neighborsOf(col: number, row: number): [number, number][] {
       ]
 }
 
+// Odd-r offset to cube: q = col - (row - (row & 1)) / 2, r = row
+export function hexDistance(col1: number, row1: number, col2: number, row2: number): number {
+  const q1 = col1 - (row1 - (row1 & 1)) / 2
+  const q2 = col2 - (row2 - (row2 & 1)) / 2
+  return Math.max(Math.abs(q1 - q2), Math.abs(row1 - row2), Math.abs(q2 + row2 - q1 - row1))
+}
+
 export function hexPolygonPoints(radius: number): string {
   const w = radius * Math.sqrt(3)
   const h = 2 * radius
