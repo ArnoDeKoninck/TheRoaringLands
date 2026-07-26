@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Force)",
+      "Bash(Select-Object -Property Name, PSIsContainer)",
+      "Bash(git -C \"D:\\\\Programs\\\\Projects\\\\TheRoaringLands\" log --oneline)",
+      "Bash(git *)",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --no-src-dir --import-alias \"@/*\" --yes)",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --no-src-dir --import-alias \"@/*\" --skip-install)",
+      "Bash(npx create-next-app@latest --help)",
+      "Bash(npx create-next-app@latest *)",
+      "Bash(npm install *)",
+      "Bash(npm test *)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('Next:', d.get\\('dependencies',{}\\).get\\('next','?'\\)\\); print\\('Supabase:', d.get\\('dependencies',{}\\).get\\('@supabase/supabase-js','?'\\)\\); print\\('Scripts:', list\\(d.get\\('scripts',{}\\).keys\\(\\)\\)\\)\")",
+      "PowerShell(New-Item *)",
+      "Bash(Get-ChildItem -Path \"D:\\\\Programs\\\\Projects\\\\TheRoaringLands\\\\components\" -Recurse)",
+      "Bash(Select-Object FullName)",
+      "PowerShell(supabase *)",
+      "PowerShell(Get-Process *)"
+    ]
+  }
+}

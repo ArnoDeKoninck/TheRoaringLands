@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<style>
+  @keyframes hf-pulse { 0%,100%{opacity:.55} 50%{opacity:1} }
+  @keyframes hf-fadein { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+  body{margin:0;background:oklch(0.14 0.012 260);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  a{color:oklch(0.78 0.15 200)}
+  a:hover{color:oklch(0.84 0.13 200)}
+  ::-webkit-scrollbar{width:9px;height:9px}
+  ::-webkit-scrollbar-thumb{background:oklch(1 0 0 / 0.14);border-radius:6px}
+  ::-webkit-scrollbar-track{background:transparent}
+</style>
+</helmet>
+
+<sc-if value="{{ isLogin }}" hint-placeholder-val="{{ true }}">
+<div style="width:100vw;height:100vh;background:radial-gradient(ellipse at 50% 20%, oklch(0.19 0.02 260) 0%, oklch(0.12 0.01 260) 70%);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;font-family:inherit">
+  <div style="position:absolute;inset:0;opacity:0.5;background-image:repeating-linear-gradient(120deg, transparent 0 82px, oklch(1 0 0 / 0.03) 82px 84px),repeating-linear-gradient(60deg, transparent 0 82px, oklch(1 0 0 / 0.03) 82px 84px);pointer-events:none"></div>
+  <form onSubmit="{{ handleLogin }}" style="position:relative;width:380px;background:oklch(0.19 0.014 260);border:1px solid oklch(1 0 0 / 0.08);border-radius:14px;padding:40px 36px 32px;box-shadow:0 30px 60px -20px rgba(0,0,0,0.6);animation:hf-fadein .4s ease both">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <svg width="26" height="30" viewBox="0 0 30 34" style="flex:none"><polygon points="15,0 30,8.5 30,25.5 15,34 0,25.5 0,8.5" fill="oklch(0.78 0.15 85)"></polygon></svg>
+      <div style="font-size:19px;font-weight:700;letter-spacing:0.5px;color:oklch(0.93 0.006 260)">HEXFORGE</div>
+    </div>
+    <div style="font-size:13px;color:oklch(0.6 0.02 260);margin-bottom:30px">Sign in to continue your civilization</div>
+
+    <label style="display:block;font-size:12px;color:oklch(0.65 0.02 260);margin-bottom:6px">Username</label>
+    <input type="text" value="{{ username }}" onChange="{{ onUsernameChange }}" placeholder="commander_name" style="width:100%;box-sizing:border-box;background:oklch(0.16 0.012 260);border:1px solid oklch(1 0 0 / 0.1);border-radius:8px;padding:11px 12px;color:oklch(0.93 0.006 260);font-size:14px;margin-bottom:18px;outline:none" style-focus="border-color:oklch(0.78 0.15 85)" />
+
+    <label style="display:block;font-size:12px;color:oklch(0.65 0.02 260);margin-bottom:6px">Password</label>
+    <input type="password" value="{{ password }}" onChange="{{ onPasswordChange }}" placeholder="••••••••" style="width:100%;box-sizing:border-box;background:oklch(0.16 0.012 260);border:1px solid oklch(1 0 0 / 0.1);border-radius:8px;padding:11px 12px;color:oklch(0.93 0.006 260);font-size:14px;margin-bottom:8px;outline:none" style-focus="border-color:oklch(0.78 0.15 85)" />
+
+    <sc-if value="{{ loginError }}" hint-placeholder-val="{{ false }}">
+      <div style="color:oklch(0.7 0.15 25);font-size:12px;margin-bottom:10px">{{ loginError }}</div>
+    </sc-if>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 24px">
+      <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:oklch(0.6 0.02 260);cursor:pointer">
+        <input type="checkbox" style="accent-color:oklch(0.78 0.15 85)" />Remember me
+      </label>
+      <a href="#" style="font-size:12px;text-decoration:none">Forgot password?</a>
+    </div>
+
+    <button type="submit" style="width:100%;background:oklch(0.78 0.15 85);border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:700;color:oklch(0.16 0.02 85);cursor:pointer;letter-spacing:0.3px" style-hover="background:oklch(0.83 0.14 85)">ENTER THE REALM</button>
+  </form>
+</div>
+</sc-if>
+
+<sc-if value="{{ isGame }}" hint-placeholder-val="{{ false }}">
+<div style="width:100vw;height:100vh;background:oklch(0.14 0.012 260);display:flex;flex-direction:column;overflow:hidden;font-family:inherit">
+
+  <div style="height:56px;flex:none;display:flex;align-items:center;gap:22px;padding:0 20px;background:oklch(0.17 0.013 260);border-bottom:1px solid oklch(1 0 0 / 0.08);z-index:5">
+    <div style="display:flex;align-items:center;gap:8px;margin-right:6px">
+      <svg width="18" height="21" viewBox="0 0 30 34" style="flex:none"><polygon points="15,0 30,8.5 30,25.5 15,34 0,25.5 0,8.5" fill="oklch(0.78 0.15 85)"></polygon></svg>
+      <div style="font-size:14px;font-weight:700;letter-spacing:0.4px;color:oklch(0.93 0.006 260)">HEXFORGE</div>
+    </div>
+    <div style="width:1px;height:26px;background:oklch(1 0 0 / 0.08)"></div>
+    <sc-for list="{{ resourceBar }}" as="res" hint-placeholder-count="5">
+      <div style="display:flex;align-items:center;gap:7px">
+        <div style="width:20px;height:20px;border-radius:5px;background:{{ res.color }};flex:none;display:flex;align-items:center;justify-content:center;font:700 10px ui-monospace,monospace;color:oklch(0.14 0.02 260)">{{ res.letter }}</div>
+        <div style="font:600 13px ui-monospace,monospace;color:oklch(0.88 0.006 260)">{{ res.amount }}</div>
+      </div>
+    </sc-for>
+    <div style="flex:1"></div>
+    <div style="font-size:12px;color:oklch(0.6 0.02 260)">Zoom <span style="color:oklch(0.85 0.006 260);font-family:ui-monospace,monospace">{{ zoomPct }}%</span></div>
+    <div style="display:flex;gap:6px">
+      <button onClick="{{ zoomOut }}" style="width:28px;height:28px;border-radius:7px;border:1px solid oklch(1 0 0 / 0.1);background:oklch(0.22 0.015 260);color:oklch(0.85 0.006 260);cursor:pointer;font-size:16px;line-height:1" style-hover="background:oklch(0.26 0.017 260)">−</button>
+      <button onClick="{{ zoomIn }}" style="width:28px;height:28px;border-radius:7px;border:1px solid oklch(1 0 0 / 0.1);background:oklch(0.22 0.015 260);color:oklch(0.85 0.006 260);cursor:pointer;font-size:16px;line-height:1" style-hover="background:oklch(0.26 0.017 260)">+</button>
+    </div>
+    <div style="width:1px;height:26px;background:oklch(1 0 0 / 0.08)"></div>
+    <button onClick="{{ toggleCatalogue }}" style="height:32px;padding:0 14px;border-radius:8px;border:1px solid oklch(1 0 0 / 0.1);background:{{ catalogueBtnBg }};color:oklch(0.9 0.006 260);cursor:pointer;font-size:12.5px;font-weight:600">Catalogue</button>
+    <div style="width:30px;height:30px;border-radius:50%;background:oklch(0.3 0.02 260);border:1px solid oklch(1 0 0 / 0.1)"></div>
+  </div>
+
+  <div style="flex:1;position:relative;display:flex;overflow:hidden">
+
+    <div style="flex:1;position:relative;overflow:hidden;cursor:{{ mapCursor }};background:oklch(0.115 0.01 260);background-image:radial-gradient(oklch(1 0 0 / 0.045) 1px, transparent 1px);background-size:26px 26px"
+      onPointerDown="{{ onMapPointerDown }}" onPointerMove="{{ onMapPointerMove }}" onPointerUp="{{ onMapPointerUp }}" onPointerLeave="{{ onMapPointerUp }}" onWheel="{{ onMapWheel }}">
+
+      <div style="position:absolute;left:0;top:0;transform:{{ mapTransform }};transform-origin:0 0;width:{{ gridWidth }}px;height:{{ gridHeight }}px">
+        <sc-for list="{{ hexCells }}" as="cell" hint-placeholder-count="40">
+          <svg width="83.14" height="96" viewBox="0 0 83.14 96" style="position:absolute;left:{{ cell.x }}px;top:{{ cell.y }}px;cursor:pointer" onClick="{{ cell.onClick }}" onDragOver="{{ preventDefault }}" onDrop="{{ cell.onDrop }}">
+            <polygon points="41.57,0 83.14,24 83.14,72 41.57,96 0,72 0,24" fill="{{ cell.fill }}" stroke="{{ cell.stroke }}" stroke-width="{{ cell.strokeWidth }}"></polygon>
+            <sc-if value="{{ cell.code }}" hint-placeholder-val="{{ false }}">
+              <text x="41.57" y="52" text-anchor="middle" font-family="ui-monospace,monospace" font-size="15" font-weight="700" fill="oklch(0.12 0.01 260)">{{ cell.code }}</text>
+            </sc-if>
+          </svg>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{ placingLabel }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;top:16px;left:16px;background:oklch(0.78 0.15 85 / 0.95);color:oklch(0.14 0.02 85);font-size:12.5px;font-weight:700;padding:8px 14px;border-radius:8px;display:flex;align-items:center;gap:10px;box-shadow:0 8px 20px rgba(0,0,0,0.35)">
+          Placing: {{ placingLabel }}
+          <button onClick="{{ cancelPlacing }}" style="background:oklch(0.14 0.02 85 / 0.2);border:none;border-radius:5px;color:oklch(0.14 0.02 85);width:18px;height:18px;cursor:pointer;font-size:12px;line-height:1">✕</button>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ inspector }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;bottom:18px;left:18px;width:250px;background:oklch(0.19 0.014 260);border:1px solid oklch(1 0 0 / 0.1);border-radius:12px;padding:16px;box-shadow:0 20px 40px -10px rgba(0,0,0,0.5);animation:hf-fadein .2s ease both">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div style="display:flex;align-items:center;gap:9px">
+              <div style="width:22px;height:22px;border-radius:5px;background:{{ inspector.color }}"></div>
+              <div style="font-size:14px;font-weight:700;color:oklch(0.93 0.006 260)">{{ inspector.name }}</div>
+            </div>
+            <button onClick="{{ closeInspector }}" style="background:none;border:none;color:oklch(0.55 0.02 260);cursor:pointer;font-size:14px">✕</button>
+          </div>
+          <div style="font-size:11.5px;color:oklch(0.6 0.02 260);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px">Produces</div>
+          <div style="font-size:13px;color:oklch(0.85 0.006 260);margin-bottom:12px">{{ inspector.resource }}</div>
+          <div style="font-size:11.5px;color:oklch(0.6 0.02 260);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">Connections ({{ inspector.neighborCount }})</div>
+          <sc-if value="{{ inspector.hasNeighbors }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              <sc-for list="{{ inspector.neighbors }}" as="nb" hint-placeholder-count="2">
+                <div style="font-size:11.5px;padding:4px 8px;border-radius:6px;background:oklch(0.24 0.016 260);color:oklch(0.8 0.006 260)">{{ nb }}</div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ inspector.noNeighbors }}" hint-placeholder-val="{{ true }}">
+            <div style="font-size:12px;color:oklch(0.5 0.02 260)">No adjacent tiles yet</div>
+          </sc-if>
+        </div>
+      </sc-if>
+    </div>
+
+    <sc-if value="{{ catalogueOpen }}" hint-placeholder-val="{{ true }}">
+    <div style="width:320px;flex:none;background:oklch(0.17 0.013 260);border-left:1px solid oklch(1 0 0 / 0.08);display:flex;flex-direction:column">
+      <div style="display:flex;border-bottom:1px solid oklch(1 0 0 / 0.08);flex:none">
+        <sc-for list="{{ tabs }}" as="tab" hint-placeholder-count="4">
+          <button onClick="{{ tab.onClick }}" style="flex:1;padding:13px 4px;background:none;border:none;border-bottom:2px solid {{ tab.borderColor }};color:{{ tab.textColor }};font-size:11.5px;font-weight:600;cursor:pointer;letter-spacing:0.2px">{{ tab.label }}</button>
+        </sc-for>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px">
+        <sc-for list="{{ catalogueItems }}" as="item" hint-placeholder-count="4">
+          <div draggable="{{ item.draggable }}" onDragStart="{{ item.onDragStart }}" onClick="{{ item.onClick }}" style="background:{{ item.cardBg }};border:1px solid {{ item.cardBorder }};border-radius:10px;padding:12px;cursor:{{ item.cursor }};display:flex;gap:11px;align-items:flex-start" style-hover="background:oklch(0.24 0.016 260)">
+            <div style="width:34px;height:34px;border-radius:8px;background:{{ item.color }};flex:none;display:flex;align-items:center;justify-content:center;font:700 12px ui-monospace,monospace;color:oklch(0.14 0.02 260)">{{ item.code }}</div>
+            <div style="min-width:0">
+              <div style="font-size:13px;font-weight:700;color:oklch(0.9 0.006 260);margin-bottom:2px">{{ item.name }}</div>
+              <div style="font-size:11.5px;color:oklch(0.6 0.02 260);line-height:1.4">{{ item.desc }}</div>
+              <sc-if value="{{ item.tag }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:6px;display:inline-block;font-size:10px;font-weight:700;letter-spacing:0.3px;color:oklch(0.78 0.15 200);background:oklch(0.78 0.15 200 / 0.12);padding:2px 7px;border-radius:5px">{{ item.tag }}</div>
+              </sc-if>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    </sc-if>
+  </div>
+</div>
+</sc-if>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900}}">
+const SIZE=48, HW=Math.sqrt(3)*SIZE, HH=SIZE*2, VSTEP=HH*0.75, COLS=30, ROWS=24;
+
+const TILE_TYPES=[
+  {id:'plains',name:'Plains',code:'PL',color:'oklch(0.62 0.09 120)',resource:'+3 Food /turn',desc:'Open grassland, ideal for farming'},
+  {id:'forest',name:'Forest',code:'FR',color:'oklch(0.5 0.09 145)',resource:'+3 Wood /turn',desc:'Dense woodland, steady lumber'},
+  {id:'mountain',name:'Mountain',code:'MT',color:'oklch(0.55 0.02 260)',resource:'+2 Stone /turn',desc:'Rocky highlands, defensible'},
+  {id:'water',name:'Water',code:'WT',color:'oklch(0.6 0.1 230)',resource:'+2 Food /turn',desc:'River or coast, trade routes'},
+  {id:'desert',name:'Desert',code:'DS',color:'oklch(0.72 0.09 80)',resource:'+1 Gold /turn',desc:'Arid dunes, rare minerals'},
+  {id:'farmland',name:'Farmland',code:'FM',color:'oklch(0.68 0.11 95)',resource:'+5 Food /turn',desc:'Cultivated fields, high yield'},
+  {id:'ore',name:'Ore Deposit',code:'OR',color:'oklch(0.55 0.03 30)',resource:'+3 Iron /turn',desc:'Rich vein, needs a mine'}
+];
+const RECIPES=[
+  {id:'r1',name:'Plank',code:'PK',color:'oklch(0.6 0.08 90)',desc:'2 Wood → 1 Plank'},
+  {id:'r2',name:'Iron Ingot',code:'IN',color:'oklch(0.6 0.03 30)',desc:'2 Ore + 1 Wood → 1 Ingot'},
+  {id:'r3',name:'Tool Kit',code:'TK',color:'oklch(0.6 0.06 250)',desc:'2 Ingot + 1 Plank → 1 Tool Kit'},
+  {id:'r4',name:'Bread',code:'BR',color:'oklch(0.68 0.09 95)',desc:'3 Food → 2 Bread'},
+  {id:'r5',name:'Stone Brick',code:'SB',color:'oklch(0.55 0.02 260)',desc:'2 Stone → 1 Brick'}
+];
+const RESOURCES=[
+  {id:'gold',name:'Gold',code:'GD',color:'oklch(0.78 0.15 85)',desc:'1,250 in reserve — trade & upkeep'},
+  {id:'wood',name:'Wood',code:'WD',color:'oklch(0.5 0.09 145)',desc:'340 in reserve — building & crafting'},
+  {id:'stone',name:'Stone',code:'ST',color:'oklch(0.55 0.02 260)',desc:'210 in reserve — walls & roads'},
+  {id:'food',name:'Food',code:'FD',color:'oklch(0.62 0.09 120)',desc:'180 in reserve — feeds population'},
+  {id:'iron',name:'Iron',code:'IR',color:'oklch(0.55 0.03 30)',desc:'64 in reserve — tools & weapons'}
+];
+const BUILDINGS=[
+  {id:'b1',name:'Town Hall',code:'TH',color:'oklch(0.78 0.15 85)',desc:'Seat of your civilization',tag:'Core'},
+  {id:'b2',name:'Warehouse',code:'WH',color:'oklch(0.6 0.06 250)',desc:'+40% resource storage',tag:'Economy'},
+  {id:'b3',name:'Barracks',code:'BK',color:'oklch(0.6 0.1 20)',desc:'Trains defensive units',tag:'Military'},
+  {id:'b4',name:'Worker',code:'WK',color:'oklch(0.68 0.09 95)',desc:'Gathers resources from tiles',tag:'Unit'}
+];
+
+function neighborsOf(col,row){
+  const even=row%2===0;
+  const deltas=even?[[1,0],[0,-1],[-1,-1],[-1,0],[-1,1],[0,1]]:[[1,0],[1,-1],[0,-1],[-1,0],[0,1],[1,1]];
+  return deltas.map(([dc,dr])=>[col+dc,row+dr]);
+}
+
+class Component extends DCLogic {
+  state={
+    view:'login', username:'', password:'', loginError:'',
+    activeTab:'tiles', catalogueOpen:true, selectedTileId:null,
+    placed:{}, selectedKey:null,
+    pan:{x:60,y:40}, zoom:1, panning:false, panStart:null, moved:false,
+    resources:{gold:1250,wood:340,stone:210,food:180,iron:64}
+  };
+
+  constructor(props){
+    super(props);
+    this.hexGrid=[];
+    for(let row=0;row<ROWS;row++) for(let col=0;col<COLS;col++){
+      const x=col*HW+(row%2===1?HW/2:0), y=row*VSTEP;
+      this.hexGrid.push({col,row,x,y,key:col+','+row});
+    }
+  }
+
+  onUsernameChange=(e)=>this.setState({username:e.target.value});
+  onPasswordChange=(e)=>this.setState({password:e.target.value});
+  handleLogin=(e)=>{
+    e.preventDefault();
+    if(!this.state.username.trim()){ this.setState({loginError:'Enter a username to continue'}); return; }
+    this.setState({view:'game',loginError:''});
+  };
+
+  toggleCatalogue=()=>this.setState(s=>({catalogueOpen:!s.catalogueOpen}));
+  setTab=(tab)=>this.setState({activeTab:tab});
+  preventDefault=(e)=>e.preventDefault();
+
+  selectTileType=(id)=>this.setState({selectedTileId:id,selectedKey:null});
+  cancelPlacing=()=>this.setState({selectedTileId:null});
+  closeInspector=()=>this.setState({selectedKey:null});
+
+  onDragStartTile=(id,e)=>{ e.dataTransfer.setData('text/plain',id); this.setState({selectedTileId:id}); };
+
+  placeAt=(key)=>{
+    const id=this.state.selectedTileId;
+    if(!id) return;
+    this.setState(s=>({placed:{...s.placed,[key]:id}}));
+  };
+
+  onHexClick=(key)=>{
+    if(this.state.selectedTileId){ this.placeAt(key); return; }
+    if(this.state.placed[key]) this.setState({selectedKey:key});
+  };
+  onHexDrop=(key,e)=>{ e.preventDefault(); this.placeAt(key); };
+
+  onMapPointerDown=(e)=>{
+    this.setState({panning:true,panStart:{x:e.clientX,y:e.clientY,pan:{...this.state.pan}},moved:false});
+  };
+  onMapPointerMove=(e)=>{
+    if(!this.state.panning) return;
+    const {x,y,pan}=this.state.panStart;
+    const dx=e.clientX-x, dy=e.clientY-y;
+    if(Math.abs(dx)>4||Math.abs(dy)>4) this.setState({moved:true});
+    this.setState({pan:{x:pan.x+dx,y:pan.y+dy}});
+  };
+  onMapPointerUp=()=>this.setState({panning:false,panStart:null});
+
+  onMapWheel=(e)=>{
+    e.preventDefault();
+    const delta=e.deltaY>0?-0.1:0.1;
+    this.setState(s=>({zoom:Math.max(0.4,Math.min(2.5,s.zoom+delta))}));
+  };
+  zoomIn=()=>this.setState(s=>({zoom:Math.min(2.5,s.zoom+0.15)}));
+  zoomOut=()=>this.setState(s=>({zoom:Math.max(0.4,s.zoom-0.15)}));
+
+  renderVals(){
+    const s=this.state;
+    const tileById=Object.fromEntries(TILE_TYPES.map(t=>[t.id,t]));
+
+    const hexCells=this.hexGrid.map(h=>{
+      const tid=s.placed[h.key];
+      const t=tid?tileById[tid]:null;
+      const selected=s.selectedKey===h.key;
+      const placingMode=!!s.selectedTileId;
+      return {
+        ...h,
+        fill: t?t.color:(placingMode?'oklch(0.78 0.15 85 / 0.08)':'transparent'),
+        stroke: selected?'oklch(0.78 0.15 200)':'oklch(1 0 0 / 0.14)',
+        strokeWidth: selected?3:1.2,
+        code: t?t.code:null,
+        onClick: ()=>this.onHexClick(h.key),
+        onDrop: (e)=>this.onHexDrop(h.key,e)
+      };
+    });
+
+    const tabDefs=[
+      {id:'tiles',label:'HEX TILES'},{id:'recipes',label:'RECIPES'},
+      {id:'resources',label:'RESOURCES'},{id:'buildings',label:'BUILDINGS'}
+    ];
+    const tabs=tabDefs.map(td=>({
+      ...td,
+      onClick:()=>this.setTab(td.id),
+      borderColor: s.activeTab===td.id?'oklch(0.78 0.15 85)':'transparent',
+      textColor: s.activeTab===td.id?'oklch(0.93 0.006 260)':'oklch(0.55 0.02 260)'
+    }));
+
+    let catalogueItems=[];
+    if(s.activeTab==='tiles') catalogueItems=TILE_TYPES.map(t=>({
+      ...t, draggable:true, cursor:'grab',
+      cardBg: s.selectedTileId===t.id?'oklch(0.78 0.15 85 / 0.14)':'oklch(0.2 0.014 260)',
+      cardBorder: s.selectedTileId===t.id?'oklch(0.78 0.15 85 / 0.5)':'oklch(1 0 0 / 0.07)',
+      onDragStart:(e)=>this.onDragStartTile(t.id,e),
+      onClick:()=>this.selectTileType(t.id),
+      desc:t.resource, tag:null
+    }));
+    else if(s.activeTab==='recipes') catalogueItems=RECIPES.map(r=>({...r,draggable:false,cursor:'default',cardBg:'oklch(0.2 0.014 260)',cardBorder:'oklch(1 0 0 / 0.07)',onDragStart:()=>{},onClick:()=>{},tag:null}));
+    else if(s.activeTab==='resources') catalogueItems=RESOURCES.map(r=>({...r,draggable:false,cursor:'default',cardBg:'oklch(0.2 0.014 260)',cardBorder:'oklch(1 0 0 / 0.07)',onDragStart:()=>{},onClick:()=>{},tag:null}));
+    else catalogueItems=BUILDINGS.map(b=>({...b,draggable:false,cursor:'default',cardBg:'oklch(0.2 0.014 260)',cardBorder:'oklch(1 0 0 / 0.07)',onDragStart:()=>{},onClick:()=>{}}));
+
+    let inspector=null;
+    if(s.selectedKey && s.placed[s.selectedKey]){
+      const [col,row]=s.selectedKey.split(',').map(Number);
+      const t=tileById[s.placed[s.selectedKey]];
+      const neighbors=neighborsOf(col,row).map(([c,r])=>s.placed[c+','+r]).filter(Boolean).map(id=>tileById[id].name);
+      inspector={name:t.name,color:t.color,resource:t.resource,neighbors,neighborCount:neighbors.length,hasNeighbors:neighbors.length>0,noNeighbors:neighbors.length===0};
+    }
+
+    const placingLabel = s.selectedTileId ? tileById[s.selectedTileId].name : null;
+
+    return {
+      isLogin: s.view==='login', isGame: s.view==='game',
+      username:s.username, password:s.password, loginError:s.loginError,
+      onUsernameChange:this.onUsernameChange, onPasswordChange:this.onPasswordChange, handleLogin:this.handleLogin,
+      resourceBar:[{letter:'GD',amount:s.resources.gold,color:'oklch(0.78 0.15 85)'},{letter:'WD',amount:s.resources.wood,color:'oklch(0.5 0.09 145)'},{letter:'ST',amount:s.resources.stone,color:'oklch(0.55 0.02 260)'},{letter:'FD',amount:s.resources.food,color:'oklch(0.62 0.09 120)'},{letter:'IR',amount:s.resources.iron,color:'oklch(0.55 0.03 30)'}],
+      zoomPct: Math.round(s.zoom*100), zoomIn:this.zoomIn, zoomOut:this.zoomOut,
+      catalogueOpen:s.catalogueOpen, toggleCatalogue:this.toggleCatalogue,
+      catalogueBtnBg: s.catalogueOpen?'oklch(0.78 0.15 85 / 0.18)':'oklch(0.22 0.015 260)',
+      mapCursor: s.selectedTileId?'crosshair':(s.panning?'grabbing':'grab'),
+      mapTransform:`translate(${s.pan.x}px, ${s.pan.y}px) scale(${s.zoom})`,
+      gridWidth: COLS*HW+HW/2, gridHeight: (ROWS-1)*VSTEP+HH,
+      hexCells, tabs, catalogueItems, inspector,
+      placingLabel, cancelPlacing:this.cancelPlacing, closeInspector:this.closeInspector,
+      preventDefault:this.preventDefault,
+      onMapPointerDown:this.onMapPointerDown, onMapPointerMove:this.onMapPointerMove, onMapPointerUp:this.onMapPointerUp, onMapWheel:this.onMapWheel
+    };
+  }
+}
+
+</script>
+</body>
+</html>
