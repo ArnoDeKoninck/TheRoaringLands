@@ -3,7 +3,8 @@ import { useState } from 'react'
 import { useGame } from './providers/GameProvider'
 import HexGrid from './hex-grid/HexGrid'
 import TileInspector from './inspector/TileInspector'
-import { keyToColRow, colRowToKey } from '@/lib/hex-math'
+import CataloguePanel from './catalogue/CataloguePanel'
+import { colRowToKey } from '@/lib/hex-math'
 import { revealTile } from '@/actions/map'
 import type { MapTile, TileType, CatalogueEntry } from '@/lib/types'
 
@@ -57,18 +58,10 @@ export default function GameView({ initialTiles, tileTypes, catalogueEntries }: 
         />
       )}
       {catalogueOpen && (
-        <div style={{
-          width: '320px',
-          background: 'oklch(0.19 0.014 260)',
-          borderLeft: '1px solid oklch(1 0 0 / 0.08)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'oklch(0.4 0.01 260)',
-          fontSize: '13px',
-        }}>
-          Catalogue coming soon
-        </div>
+        <CataloguePanel
+          tileTypes={tileTypes}
+          catalogueEntries={catalogueEntries}
+        />
       )}
     </div>
   )
