@@ -7,11 +7,10 @@ import type { GameMap } from '@/lib/types'
 
 export default function MapSwitcher() {
   const router = useRouter()
-  const storeMaps = useGameStore(s => s.maps)
+  const maps = useGameStore(s => s.maps)
   const activeMap = useGameStore(s => s.activeMap)
   const setActiveMap = useGameStore(s => s.setActiveMap)
   const role = useGameStore(s => s.role)
-  const [maps, setMaps] = useState<GameMap[]>(storeMaps)
   const [showCreate, setShowCreate] = useState(false)
   const isDm = role === 'dm'
 
@@ -26,7 +25,6 @@ export default function MapSwitcher() {
   }
 
   function handleCreated(map: GameMap) {
-    setMaps(prev => [...prev, map])
     setActiveMap(map)
     router.push(`/?mapId=${map.id}`)
     setShowCreate(false)
