@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Hud from '@/components/hud/Hud'
 import GameView from '@/components/GameView'
-import type { PartyResources, MapTile, TileType, CatalogueEntry, Profile, Role } from '@/lib/types'
+import StoreInitializer from '@/components/providers/StoreInitializer'
+import type { PartyResources, MapTile, TileType, CatalogueEntry, GameMap, Profile, Role } from '@/lib/types'
 
 export default async function GamePage({ searchParams }: { searchParams: Promise<{ mapId?: string }> }) {
   const params = await searchParams
@@ -10,11 +11,16 @@ export default async function GamePage({ searchParams }: { searchParams: Promise
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: maps } = await supabase.from('maps').select('id').order('created_at')
-  const mapId = params.mapId ?? maps?.[0]?.id ?? ''
+  const [{ data: mapsData }, { data: profile }] = await Promise.all([
+    supabase.from('maps').select('*').order('created_at'),
+    supabase.from('profiles').select('role').eq('id', user.id).single<Pick<Profile, 'role'>>(),
+  ])
 
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single<Pick<Profile, 'role'>>()
-  const isDm = (profile?.role as Role) === 'dm'
+  const maps: GameMap[] = (mapsData ?? []) as GameMap[]
+  const role: Role = (profile?.role as Role) ?? 'player'
+  const isDm = role === 'dm'
+  const mapId = params.mapId ?? maps[0]?.id ?? ''
+  const activeMap = maps.find(m => m.id === mapId) ?? maps[0]
 
   const [
     { data: mapTiles },
@@ -29,19 +35,38 @@ export default async function GamePage({ searchParams }: { searchParams: Promise
   ])
 
   const emptyResources: PartyResources = { id: '', map_id: null, gold: 0, wood: 0, stone: 0, food: 0, iron: 0 }
+  const resolvedResources = resources ?? emptyResources
+  const resourceRecord: Record<string, number> = {
+    gold: resolvedResources.gold,
+    wood: resolvedResources.wood,
+    stone: resolvedResources.stone,
+    food: resolvedResources.food,
+    iron: resolvedResources.iron,
+  }
 
   return (
-    <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <Hud
-        resources={resources ?? emptyResources}
-        mapId={mapId}
-        isDm={isDm}
-      />
-      <GameView
-        initialTiles={(mapTiles ?? []) as MapTile[]}
+    <>
+      <StoreInitializer
+        role={role}
+        maps={maps}
         tileTypes={(tileTypes ?? []) as TileType[]}
         catalogueEntries={(catalogueEntries ?? []) as CatalogueEntry[]}
+        resources={resourceRecord}
+        activeMap={activeMap!}
+        tiles={(mapTiles ?? []) as MapTile[]}
       />
-    </div>
+      <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <Hud
+          resources={resolvedResources}
+          mapId={mapId}
+          isDm={isDm}
+        />
+        <GameView
+          initialTiles={(mapTiles ?? []) as MapTile[]}
+          tileTypes={(tileTypes ?? []) as TileType[]}
+          catalogueEntries={(catalogueEntries ?? []) as CatalogueEntry[]}
+        />
+      </div>
+    </>
   )
 }
