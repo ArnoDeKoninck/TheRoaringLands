@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useGame } from './providers/GameProvider'
+import HexGrid from './hex-grid/HexGrid'
 import type { MapTile, TileType, CatalogueEntry } from '@/lib/types'
 
 interface Props {
@@ -12,21 +13,17 @@ interface Props {
 export default function GameView({ initialTiles, tileTypes, catalogueEntries }: Props) {
   const { catalogueOpen } = useGame()
   const [tiles, setTiles] = useState<MapTile[]>(initialTiles)
+  const [inspectedKey, setInspectedKey] = useState<string | null>(null)
 
   return (
     <div style={{ flex: 1, position: 'relative', display: 'flex', overflow: 'hidden' }}>
-      {/* HexGrid placeholder — implemented in next task */}
-      <div style={{
-        flex: 1,
-        background: 'oklch(0.115 0.01 260)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: 'oklch(0.4 0.01 260)',
-        fontSize: '13px',
-      }}>
-        Hex grid coming soon
-      </div>
+      <HexGrid
+        tiles={tiles}
+        setTiles={setTiles}
+        tileTypes={tileTypes}
+        onTileInspect={setInspectedKey}
+        inspectedKey={inspectedKey}
+      />
       {catalogueOpen && (
         <div style={{
           width: '320px',
