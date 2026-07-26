@@ -1,5 +1,5 @@
 'use client'
-import { useState, useMemo } from 'react'
+import { useMemo } from 'react'
 import { useGameStore } from '@/lib/store/game-store'
 import HexGrid from './hex-grid/HexGrid'
 import TileInspector from './inspector/TileInspector'
@@ -14,12 +14,14 @@ interface Props {
   catalogueEntries: CatalogueEntry[]
 }
 
-export default function GameView({ initialTiles, tileTypes, catalogueEntries }: Props) {
+export default function GameView({ initialTiles: _initialTiles, tileTypes, catalogueEntries }: Props) {
   const catalogueOpen = useGameStore(s => s.catalogueOpen)
   const role = useGameStore(s => s.role)
   const isDm = role === 'dm'
-  const [tiles, setTiles] = useState<MapTile[]>(initialTiles)
-  const [inspectedKey, setInspectedKey] = useState<string | null>(null)
+  const tiles = useGameStore(s => s.tiles)
+  const setTiles = useGameStore(s => s.setTiles)
+  const inspectedKey = useGameStore(s => s.inspectedKey)
+  const setInspectedKey = useGameStore(s => s.setInspectedKey)
 
   const tileTypeMap = useMemo(() => new Map(tileTypes.map(t => [t.id, t])), [tileTypes])
 
@@ -40,13 +42,7 @@ export default function GameView({ initialTiles, tileTypes, catalogueEntries }: 
 
   return (
     <div style={{ flex: 1, position: 'relative', display: 'flex', overflow: 'hidden' }}>
-      <HexGrid
-        tiles={tiles}
-        setTiles={setTiles}
-        tileTypes={tileTypes}
-        onTileInspect={setInspectedKey}
-        inspectedKey={inspectedKey}
-      />
+      <HexGrid />
       {inspectedTile && inspectedType && (
         <TileInspector
           tile={inspectedTile}

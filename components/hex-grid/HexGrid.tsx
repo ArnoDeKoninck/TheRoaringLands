@@ -7,21 +7,18 @@ import MiniMap from './MiniMap'
 import PlacingPill from './PlacingPill'
 import { hexToPixel, gridPixelSize, colRowToKey, hexDistance } from '@/lib/hex-math'
 import { placeTile } from '@/actions/map'
-import type { MapTile, TileType } from '@/lib/types'
 
 interface TooltipData { key: string; clientX: number; clientY: number }
 
-interface Props {
-  tiles: MapTile[]
-  setTiles: React.Dispatch<React.SetStateAction<MapTile[]>>
-  tileTypes: TileType[]
-  onTileInspect: (key: string | null) => void
-  inspectedKey: string | null
-}
-
-export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, inspectedKey }: Props) {
+export default function HexGrid() {
   const role = useGameStore(s => s.role)
   const activeMap = useGameStore(s => s.activeMap)
+  const tiles = useGameStore(s => s.tiles)
+  const setTiles = useGameStore(s => s.setTiles)
+  const tileTypes = useGameStore(s => s.tileTypes)
+  const inspectedKey = useGameStore(s => s.inspectedKey)
+  const setInspectedKey = useGameStore(s => s.setInspectedKey)
+  const selectedKeys = useGameStore(s => s.selectedKeys)
   const selectedTileId = useGameStore(s => s.selectedTileTypeId)
   const setSelectedTileId = useGameStore(s => s.setSelectedTileTypeId)
   const zoom = useGameStore(s => s.zoom)
@@ -107,7 +104,7 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
     const svgEl = target.closest('[data-col]')
     if (!svgEl) {
       // Background click — deselect and close tooltip
-      onTileInspect(null)
+      setInspectedKey(null)
       setTooltipData(null)
       lastClick.current = { time: 0, key: '' }
       return
@@ -162,7 +159,7 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
     }
 
     const existing = tileMap.get(key)
-    onTileInspect(existing ? key : null)
+    setInspectedKey(existing ? key : null)
   }
 
   function handleHexDoubleClick(col: number, row: number) {
@@ -251,6 +248,7 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
               tileType={tileType}
               revealed={tile?.revealed ?? false}
               isInspected={key === inspectedKey}
+              isSelected={selectedKeys.has(key)}
               inPlacementMode={!!selectedTileId}
               isDm={isDm}
               onDrop={e => handleDrop(e, col, row)}
