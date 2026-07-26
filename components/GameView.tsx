@@ -2,6 +2,9 @@
 import { useState } from 'react'
 import { useGame } from './providers/GameProvider'
 import HexGrid from './hex-grid/HexGrid'
+import TileInspector from './inspector/TileInspector'
+import { keyToColRow, colRowToKey } from '@/lib/hex-math'
+import { revealTile } from '@/actions/map'
 import type { MapTile, TileType, CatalogueEntry } from '@/lib/types'
 
 interface Props {
@@ -11,9 +14,27 @@ interface Props {
 }
 
 export default function GameView({ initialTiles, tileTypes, catalogueEntries }: Props) {
-  const { catalogueOpen } = useGame()
+  const { catalogueOpen, role } = useGame()
+  const isDm = role === 'dm'
   const [tiles, setTiles] = useState<MapTile[]>(initialTiles)
   const [inspectedKey, setInspectedKey] = useState<string | null>(null)
+
+  const tileTypeMap = new Map(tileTypes.map(t => [t.id, t]))
+
+  const inspectedTile = inspectedKey
+    ? tiles.find(t => colRowToKey(t.col, t.row) === inspectedKey) ?? null
+    : null
+  const inspectedType = inspectedTile
+    ? tileTypeMap.get(inspectedTile.tile_type_id) ?? null
+    : null
+
+  async function handleRevealToggle() {
+    if (!inspectedTile) return
+    const result = await revealTile({ tileId: inspectedTile.id, revealed: !inspectedTile.revealed })
+    if (result.tile) {
+      setTiles(prev => prev.map(t => t.id === result.tile!.id ? result.tile! : t))
+    }
+  }
 
   return (
     <div style={{ flex: 1, position: 'relative', display: 'flex', overflow: 'hidden' }}>
@@ -24,6 +45,17 @@ export default function GameView({ initialTiles, tileTypes, catalogueEntries }: 
         onTileInspect={setInspectedKey}
         inspectedKey={inspectedKey}
       />
+      {inspectedTile && inspectedType && (
+        <TileInspector
+          tile={inspectedTile}
+          tileType={inspectedType}
+          allTiles={tiles}
+          tileTypeMap={tileTypeMap}
+          onClose={() => setInspectedKey(null)}
+          onRevealToggle={isDm ? handleRevealToggle : undefined}
+          isDm={isDm}
+        />
+      )}
       {catalogueOpen && (
         <div style={{
           width: '320px',
