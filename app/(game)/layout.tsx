@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import HydrationOverlay from '@/components/HydrationOverlay'
 import type { GameMap } from '@/lib/types'
 
 export default async function GameLayout({ children }: { children: React.ReactNode }) {
@@ -18,5 +19,10 @@ export default async function GameLayout({ children }: { children: React.ReactNo
     )
   }
 
-  return <>{children}</>
+  return (
+    <>
+      <HydrationOverlay />
+      {children}
+    </>
+  )
 }
