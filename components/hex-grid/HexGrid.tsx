@@ -2,6 +2,7 @@
 import { useRef, useCallback, useState, useEffect, useMemo } from 'react'
 import { useGame } from '@/components/providers/GameProvider'
 import HexTile from './HexTile'
+import MiniMap from './MiniMap'
 import PlacingPill from './PlacingPill'
 import { hexToPixel, gridPixelSize, colRowToKey, hexDistance } from '@/lib/hex-math'
 import { placeTile } from '@/actions/map'
@@ -38,8 +39,6 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
   const containerRef = useRef<HTMLDivElement>(null)
 
   const onPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    // Only start drag on the background, not on SVG hex elements
-    if ((e.target as Element).closest('svg')) return
     dragging.current = true
     setIsDragging(true)
     moved.current = false
@@ -167,6 +166,17 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
           )
         })}
       </div>
+
+      <MiniMap
+        activeMap={activeMap}
+        tiles={tiles}
+        tileTypeMap={tileTypeMap}
+        pan={pan}
+        zoom={zoom}
+        containerRef={containerRef}
+        onPanTo={setPan}
+        isDm={isDm}
+      />
 
       <PlacingPill tileTypes={tileTypes} />
     </div>

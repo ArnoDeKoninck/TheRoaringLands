@@ -1,4 +1,4 @@
-import { colRowToKey, keyToColRow, hexToPixel, neighborsOf, hexPolygonPoints, gridPixelSize } from '@/lib/hex-math'
+import { colRowToKey, keyToColRow, hexToPixel, neighborsOf, hexPolygonPoints, gridPixelSize, hexDistance } from '@/lib/hex-math'
 
 describe('colRowToKey', () => {
   test('encodes col,row as string', () => {
@@ -81,6 +81,37 @@ describe('hexPolygonPoints', () => {
     const [x, y] = first.split(',').map(Number)
     expect(x).toBeCloseTo(41.569, 1)  // 48 * sqrt(3) / 2
     expect(y).toBeCloseTo(0)
+  })
+})
+
+describe('hexDistance', () => {
+  test('same hex is 0', () => {
+    expect(hexDistance(5, 5, 5, 5)).toBe(0)
+  })
+
+  test('adjacent same row is 1', () => {
+    expect(hexDistance(0, 0, 1, 0)).toBe(1)
+  })
+
+  test('adjacent row step from even row is 1', () => {
+    expect(hexDistance(0, 0, 0, 1)).toBe(1)   // SW neighbor
+    expect(hexDistance(0, 0, 0, -1)).toBe(1)  // NW neighbor (even row → [col, row-1])
+  })
+
+  test('adjacent row step from odd row is 1', () => {
+    expect(hexDistance(0, 1, 1, 0)).toBe(1)   // NE from odd row
+    expect(hexDistance(0, 1, 0, 0)).toBe(1)   // NW from odd row
+  })
+
+  test('radius-10 circle: center to edge is 10', () => {
+    // Imorgath center = (11,11), odd row
+    expect(hexDistance(11, 11, 11, 1)).toBe(10)   // due north (10 rows up)
+    expect(hexDistance(11, 11, 21, 11)).toBe(10)  // due east
+  })
+
+  test('one beyond radius-10 is 11', () => {
+    expect(hexDistance(11, 11, 11, 0)).toBe(11)
+    expect(hexDistance(11, 11, 22, 11)).toBe(11)
   })
 })
 
