@@ -10,6 +10,7 @@ interface Props {
   tileType: TileType | null
   revealed: boolean
   isInspected: boolean
+  isSelected: boolean
   inPlacementMode: boolean
   isDm: boolean
   onDrop: (e: React.DragEvent) => void
@@ -17,7 +18,7 @@ interface Props {
 }
 
 export default function HexTile({
-  x, y, col, row, radius, tileType, revealed, isInspected,
+  x, y, col, row, radius, tileType, revealed, isInspected, isSelected,
   inPlacementMode, isDm, onDrop, onDragOver,
 }: Props) {
   const w = radius * Math.sqrt(3)
@@ -34,6 +35,11 @@ export default function HexTile({
     }
   } else if (inPlacementMode && isDm) {
     fill = 'oklch(0.78 0.15 85 / 0.08)'
+  }
+
+  if (isSelected && !isInspected) {
+    stroke = 'oklch(0.78 0.15 200 / 0.7)'
+    strokeWidth = 2
   }
 
   if (isInspected) {
