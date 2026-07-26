@@ -17,7 +17,7 @@ export interface GameState {
   resources: Record<string, number>
 
   // Active map
-  activeMap: GameMap
+  activeMap: GameMap | null
   tiles: MapTile[]
 
   // Viewport
@@ -47,7 +47,7 @@ export interface GameState {
   setTiles: (updater: MapTile[] | ((prev: MapTile[]) => MapTile[])) => void
   setPan: (pan: { x: number; y: number }) => void
   setZoom: (zoom: number) => void
-  selectHex: (key: string, ctrl: boolean, shift: boolean) => void
+  selectHex: (key: string, ctrl: boolean) => void
   paintSelect: (key: string) => void
   clearSelection: () => void
   setInspectedKey: (key: string | null) => void
@@ -58,7 +58,7 @@ export interface GameState {
 
 export function createGameSlice(
   set: (fn: (s: GameState) => Partial<GameState>) => void,
-  _get: () => GameState,
+  get: () => GameState,
 ): GameState {
   return {
     role: 'player',
@@ -66,7 +66,7 @@ export function createGameSlice(
     tileTypes: [],
     catalogueEntries: [],
     resources: {},
-    activeMap: null as unknown as GameMap,
+    activeMap: null,
     tiles: [],
     pan: { x: 0, y: 0 },
     zoom: 1,
@@ -81,7 +81,7 @@ export function createGameSlice(
     setTiles: (updater) => set((s) => ({ tiles: typeof updater === 'function' ? updater(s.tiles) : updater })),
     setPan: (pan) => set(() => ({ pan })),
     setZoom: (zoom) => set(() => ({ zoom })),
-    selectHex: (key, ctrl, _shift) => set((s) => {
+    selectHex: (key, ctrl) => set((s) => {
       if (ctrl) {
         const next = new Set(s.selectedKeys)
         if (next.has(key)) next.delete(key)
@@ -90,10 +90,10 @@ export function createGameSlice(
       }
       return { selectedKeys: new Set([key]) }
     }),
-    paintSelect: (key) => set((s) => {
-      if (s.selectedKeys.has(key)) return {}
-      return { selectedKeys: new Set([...s.selectedKeys, key]) }
-    }),
+    paintSelect: (key) => {
+      if (get().selectedKeys.has(key)) return
+      set((s) => ({ selectedKeys: new Set([...s.selectedKeys, key]) }))
+    },
     clearSelection: () => set(() => ({ selectedKeys: new Set() })),
     setInspectedKey: (key) => set(() => ({ inspectedKey: key })),
     setSelectedTileTypeId: (id) => set(() => ({ selectedTileTypeId: id })),

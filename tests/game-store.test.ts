@@ -11,27 +11,27 @@ function makeStore(overrides: Partial<GameState> = {}) {
 describe('selection', () => {
   test('selectHex sets selectedKeys to single key', () => {
     const store = makeStore()
-    store.getState().selectHex('3,4', false, false)
+    store.getState().selectHex('3,4', false)
     expect(store.getState().selectedKeys).toEqual(new Set(['3,4']))
   })
 
   test('selectHex with ctrl adds to selection', () => {
     const store = makeStore()
-    store.getState().selectHex('3,4', false, false)
-    store.getState().selectHex('5,6', true, false)
+    store.getState().selectHex('3,4', false)
+    store.getState().selectHex('5,6', true)
     expect(store.getState().selectedKeys).toEqual(new Set(['3,4', '5,6']))
   })
 
   test('selectHex ctrl on already-selected key removes it', () => {
     const store = makeStore()
-    store.getState().selectHex('3,4', false, false)
-    store.getState().selectHex('3,4', true, false)
+    store.getState().selectHex('3,4', false)
+    store.getState().selectHex('3,4', true)
     expect(store.getState().selectedKeys).toEqual(new Set())
   })
 
   test('clearSelection empties selectedKeys', () => {
     const store = makeStore()
-    store.getState().selectHex('3,4', false, false)
+    store.getState().selectHex('3,4', false)
     store.getState().clearSelection()
     expect(store.getState().selectedKeys).toEqual(new Set())
   })
@@ -54,5 +54,20 @@ describe('selection', () => {
     store.getState().setInspectedKey('5,5')
     store.getState().setInspectedKey(null)
     expect(store.getState().inspectedKey).toBeNull()
+  })
+
+  test('paintSelect is idempotent on duplicate key', () => {
+    const store = makeStore()
+    store.getState().paintSelect('1,1')
+    store.getState().paintSelect('1,1')
+    expect(store.getState().selectedKeys).toEqual(new Set(['1,1']))
+  })
+
+  test('setTiles with functional updater appends tile', () => {
+    const store = makeStore()
+    const tile = { id: 't1', col: 0, row: 0, map_id: 'm1', tile_type_id: 'tt1', revealed: false } as any
+    store.getState().setTiles([tile])
+    store.getState().setTiles(prev => [...prev, { ...tile, id: 't2', col: 1 }])
+    expect(store.getState().tiles).toHaveLength(2)
   })
 })
