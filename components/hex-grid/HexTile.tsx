@@ -4,21 +4,21 @@ import type { TileType } from '@/lib/types'
 interface Props {
   x: number
   y: number
+  col: number
+  row: number
   radius: number
   tileType: TileType | null
   revealed: boolean
   isInspected: boolean
   inPlacementMode: boolean
   isDm: boolean
-  onClick: () => void
-  onDoubleClick: () => void
   onDrop: (e: React.DragEvent) => void
   onDragOver: (e: React.DragEvent) => void
 }
 
 export default function HexTile({
-  x, y, radius, tileType, revealed, isInspected,
-  inPlacementMode, isDm, onClick, onDoubleClick, onDrop, onDragOver,
+  x, y, col, row, radius, tileType, revealed, isInspected,
+  inPlacementMode, isDm, onDrop, onDragOver,
 }: Props) {
   const w = radius * Math.sqrt(3)
   const h = 2 * radius
@@ -48,10 +48,10 @@ export default function HexTile({
       width={w}
       height={h}
       viewBox={`0 0 ${w} ${h}`}
+      data-col={col}
+      data-row={row}
       draggable={false}
       style={{ position: 'absolute', left: x, top: y, cursor: 'inherit', userSelect: 'none' }}
-      onClick={onClick}
-      onDoubleClick={onDoubleClick}
       onDrop={onDrop}
       onDragOver={onDragOver}
     >

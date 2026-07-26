@@ -1,5 +1,5 @@
 'use client'
-import { useRef, useCallback, useEffect, useMemo, useState } from 'react'
+import { useRef, useEffect, useMemo, useState } from 'react'
 import { useGame } from '@/components/providers/GameProvider'
 import HexTile from './HexTile'
 import HexTooltip from './HexTooltip'
@@ -30,10 +30,19 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
 
   const [tooltipData, setTooltipData] = useState<TooltipData | null>(null)
 
+  // Drag state — all refs to avoid re-renders during drag
   const dragging = useRef(false)
+  const moved = useRef(false)
   const dragStart = useRef({ x: 0, y: 0 })
   const panStart = useRef({ x: 0, y: 0 })
-  const moved = useRef(false)
+
+  // Saves the element the pointer went down on; read in onPointerUp for click detection
+  // (setPointerCapture redirects compat click events away from SVG children, so we
+  //  detect clicks here instead of relying on onClick on SVG elements)
+  const pointerDownTarget = useRef<Element | null>(null)
+
+  // Double-click detection without a timer: two rapid pointer-ups on same hex
+  const lastClick = useRef<{ time: number; key: string }>({ time: 0, key: '' })
 
   const containerRef = useRef<HTMLDivElement>(null)
   const gridDivRef = useRef<HTMLDivElement>(null)
@@ -46,22 +55,26 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
     }
   }
 
+  // Sync external changes (minimap click, map switch, zoom buttons) to DOM
   useEffect(() => {
     localPan.current = pan
     localZoom.current = zoom
     applyTransform(pan, zoom)
   }, [pan, zoom])
 
-  const onPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+  // --- Pointer handlers (plain functions — always use fresh closure, no stale deps) ---
+
+  function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    pointerDownTarget.current = e.target as Element
     dragging.current = true
-    if (containerRef.current) containerRef.current.style.cursor = 'grabbing'
     moved.current = false
     dragStart.current = { x: e.clientX, y: e.clientY }
     panStart.current = { ...localPan.current }
+    if (containerRef.current) containerRef.current.style.cursor = 'grabbing'
     ;(e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId)
-  }, [])
+  }
 
-  const onPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+  function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
     if (!dragging.current) return
     const dx = e.clientX - dragStart.current.x
     const dy = e.clientY - dragStart.current.y
@@ -69,14 +82,43 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
     const newPan = { x: panStart.current.x + dx, y: panStart.current.y + dy }
     localPan.current = newPan
     applyTransform(newPan)
-  }, [])
+  }
 
-  const onPointerUp = useCallback(() => {
+  function onPointerUp() {
     if (!dragging.current) return
     dragging.current = false
     if (containerRef.current) containerRef.current.style.cursor = 'grab'
     setPan(localPan.current)
-  }, [setPan])
+
+    if (moved.current) return  // was a drag, not a click
+
+    // Identify what was clicked from the pointer-down target
+    const target = pointerDownTarget.current
+    if (!target) return
+
+    const svgEl = target.closest('[data-col]')
+    if (!svgEl) {
+      // Background click — deselect and close tooltip
+      onTileInspect(null)
+      setTooltipData(null)
+      lastClick.current = { time: 0, key: '' }
+      return
+    }
+
+    const col = parseInt(svgEl.getAttribute('data-col')!)
+    const row = parseInt(svgEl.getAttribute('data-row')!)
+    const key = colRowToKey(col, row)
+    const now = Date.now()
+
+    // Double-click: two rapid clicks on the same hex within 350ms
+    if (now - lastClick.current.time < 350 && lastClick.current.key === key) {
+      lastClick.current = { time: 0, key: '' }
+      handleHexDoubleClick(col, row)
+    } else {
+      lastClick.current = { time: now, key }
+      handleHexClick(col, row)
+    }
+  }
 
   useEffect(() => {
     const el = containerRef.current
@@ -92,8 +134,9 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
     return () => el.removeEventListener('wheel', handleWheel)
   }, [setZoom])
 
+  // --- Click handlers ---
+
   async function handleHexClick(col: number, row: number, overrideTileTypeId?: string) {
-    if (moved.current) return
     const key = colRowToKey(col, row)
     const tileId = overrideTileTypeId ?? selectedTileId
 
@@ -111,16 +154,13 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
     }
 
     const existing = tileMap.get(key)
-    // Select on click — no toggle, click background to deselect
     onTileInspect(existing ? key : null)
   }
 
   function handleHexDoubleClick(col: number, row: number) {
-    if (moved.current) return
     const key = colRowToKey(col, row)
     const tile = tileMap.get(key)
-    if (!tile) return
-    if (!isDm && !tile.revealed) return
+    if (!tile || (!isDm && !tile.revealed)) return
 
     const { x: hexX, y: hexY } = hexToPixel(col, row, radius)
     const hexW = radius * Math.sqrt(3)
@@ -142,15 +182,7 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
     handleHexClick(col, row, tileId)
   }
 
-  function handleContainerClick(e: React.MouseEvent) {
-    if (moved.current) return
-    if (!(e.target as Element).closest('svg')) {
-      onTileInspect(null)
-      setTooltipData(null)
-    }
-  }
-
-  // For circular maps filter to radius_hexes from center
+  // Build cell list — filter to circle for maps with radius_hexes
   const circRadius = activeMap.radius_hexes
   const circCenterCol = Math.floor(cols / 2)
   const circCenterRow = Math.floor(rows / 2)
@@ -181,7 +213,6 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerLeave={onPointerUp}
-      onClick={handleContainerClick}
     >
       <div
         ref={(el) => {
@@ -206,14 +237,14 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
               key={key}
               x={x}
               y={y}
+              col={col}
+              row={row}
               radius={radius}
               tileType={tileType}
               revealed={tile?.revealed ?? false}
               isInspected={key === inspectedKey}
               inPlacementMode={!!selectedTileId}
               isDm={isDm}
-              onClick={() => handleHexClick(col, row)}
-              onDoubleClick={() => handleHexDoubleClick(col, row)}
               onDrop={e => handleDrop(e, col, row)}
               onDragOver={e => e.preventDefault()}
             />
