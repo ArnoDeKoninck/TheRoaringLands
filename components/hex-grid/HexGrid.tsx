@@ -3,6 +3,7 @@ import { useRef, useEffect, useMemo, useState } from 'react'
 import { useGameStore } from '@/lib/store/game-store'
 import HexTile from './HexTile'
 import HexTooltip from './HexTooltip'
+import HexContextMenu from './HexContextMenu'
 import MiniMap from './MiniMap'
 import PlacingPill from './PlacingPill'
 import { hexToPixel, gridPixelSize, colRowToKey, hexDistance } from '@/lib/hex-math'
@@ -178,6 +179,8 @@ export default function HexGrid() {
           />
         )
       })()}
+
+      <HexContextMenu />
 
       <MiniMap
         activeMap={activeMap}
