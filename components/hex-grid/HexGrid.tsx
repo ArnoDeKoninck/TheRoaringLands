@@ -63,8 +63,6 @@ export default function HexGrid() {
 
   useKeyboardPan({ localPan, applyTransform })
 
-  if (!activeMap) return null
-
   // Compute tooltip position when inspectedKey changes
   useEffect(() => {
     if (!inspectedKey || !activeMap) { setTooltipPos(null); return }
@@ -80,6 +78,8 @@ export default function HexGrid() {
       clientY: rect.top + hexY * localZoom.current + localPan.current.y,
     })
   }, [inspectedKey, radius])
+
+  if (!activeMap) return null
 
   function handleDrop(e: React.DragEvent, col: number, row: number) {
     e.preventDefault()
