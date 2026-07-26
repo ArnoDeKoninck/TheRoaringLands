@@ -2,6 +2,7 @@ import ResourcePill from './ResourcePill'
 import ZoomControls from './ZoomControls'
 import CatalogueToggle from './CatalogueToggle'
 import MapSwitcher from '@/components/maps/MapSwitcher'
+import DmResourceEditor from './DmResourceEditor'
 import { RESOURCE_CONFIG, type PartyResources } from '@/lib/types'
 
 interface Props {
@@ -43,6 +44,7 @@ export default function Hud({ resources, mapId, isDm }: Props) {
           amount={resources[r.key as keyof PartyResources] as number}
         />
       ))}
+      {isDm && <DmResourceEditor resources={resources} mapId={mapId} />}
 
       <div style={{ flex: 1 }} />
       <MapSwitcher />
