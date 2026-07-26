@@ -11,13 +11,14 @@ interface Props {
   inPlacementMode: boolean
   isDm: boolean
   onClick: () => void
+  onDoubleClick: () => void
   onDrop: (e: React.DragEvent) => void
   onDragOver: (e: React.DragEvent) => void
 }
 
 export default function HexTile({
   x, y, radius, tileType, revealed, isInspected,
-  inPlacementMode, isDm, onClick, onDrop, onDragOver,
+  inPlacementMode, isDm, onClick, onDoubleClick, onDrop, onDragOver,
 }: Props) {
   const w = radius * Math.sqrt(3)
   const h = 2 * radius
@@ -50,6 +51,7 @@ export default function HexTile({
       draggable={false}
       style={{ position: 'absolute', left: x, top: y, cursor: 'inherit', userSelect: 'none' }}
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
       onDrop={onDrop}
       onDragOver={onDragOver}
     >

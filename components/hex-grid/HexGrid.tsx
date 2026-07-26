@@ -1,12 +1,15 @@
 'use client'
-import { useRef, useCallback, useEffect, useMemo } from 'react'
+import { useRef, useCallback, useEffect, useMemo, useState } from 'react'
 import { useGame } from '@/components/providers/GameProvider'
 import HexTile from './HexTile'
+import HexTooltip from './HexTooltip'
 import MiniMap from './MiniMap'
 import PlacingPill from './PlacingPill'
 import { hexToPixel, gridPixelSize, colRowToKey, hexDistance } from '@/lib/hex-math'
 import { placeTile } from '@/actions/map'
 import type { MapTile, TileType } from '@/lib/types'
+
+interface TooltipData { key: string; clientX: number; clientY: number }
 
 interface Props {
   tiles: MapTile[]
@@ -25,6 +28,8 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
   const tileMap = useMemo(() => new Map(tiles.map(t => [colRowToKey(t.col, t.row), t])), [tiles])
   const tileTypeMap = useMemo(() => new Map(tileTypes.map(t => [t.id, t])), [tileTypes])
 
+  const [tooltipData, setTooltipData] = useState<TooltipData | null>(null)
+
   const dragging = useRef(false)
   const dragStart = useRef({ x: 0, y: 0 })
   const panStart = useRef({ x: 0, y: 0 })
@@ -32,8 +37,6 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
 
   const containerRef = useRef<HTMLDivElement>(null)
   const gridDivRef = useRef<HTMLDivElement>(null)
-
-  // Local refs track pan/zoom without triggering re-renders during drag/zoom
   const localPan = useRef(pan)
   const localZoom = useRef(zoom)
 
@@ -43,7 +46,6 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
     }
   }
 
-  // Sync external pan/zoom changes (minimap click, zoom controls, map switch) to DOM
   useEffect(() => {
     localPan.current = pan
     localZoom.current = zoom
@@ -95,6 +97,8 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
     const key = colRowToKey(col, row)
     const tileId = overrideTileTypeId ?? selectedTileId
 
+    setTooltipData(null)
+
     if (tileId && isDm) {
       const result = await placeTile({ mapId: activeMap.id, col, row, tileTypeId: tileId })
       if (result.tile) {
@@ -107,11 +111,26 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
     }
 
     const existing = tileMap.get(key)
-    if (existing) {
-      onTileInspect(key === inspectedKey ? null : key)
-    } else {
-      onTileInspect(null)
-    }
+    // Select on click — no toggle, click background to deselect
+    onTileInspect(existing ? key : null)
+  }
+
+  function handleHexDoubleClick(col: number, row: number) {
+    if (moved.current) return
+    const key = colRowToKey(col, row)
+    const tile = tileMap.get(key)
+    if (!tile) return
+    if (!isDm && !tile.revealed) return
+
+    const { x: hexX, y: hexY } = hexToPixel(col, row, radius)
+    const hexW = radius * Math.sqrt(3)
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (!rect) return
+
+    const clientX = rect.left + (hexX + hexW / 2) * localZoom.current + localPan.current.x
+    const clientY = rect.top + hexY * localZoom.current + localPan.current.y
+
+    setTooltipData(prev => prev?.key === key ? null : { key, clientX, clientY })
   }
 
   function handleDrop(e: React.DragEvent, col: number, row: number) {
@@ -121,6 +140,14 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
     if (!tileId) return
     setSelectedTileId(tileId)
     handleHexClick(col, row, tileId)
+  }
+
+  function handleContainerClick(e: React.MouseEvent) {
+    if (moved.current) return
+    if (!(e.target as Element).closest('svg')) {
+      onTileInspect(null)
+      setTooltipData(null)
+    }
   }
 
   // For circular maps filter to radius_hexes from center
@@ -134,6 +161,9 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
       hexes.push({ col: c, row: r, key: colRowToKey(c, r) })
     }
   }
+
+  const tooltipTile = tooltipData ? (tileMap.get(tooltipData.key) ?? null) : null
+  const tooltipType = tooltipTile ? (tileTypeMap.get(tooltipTile.tile_type_id) ?? null) : null
 
   return (
     <div
@@ -151,11 +181,11 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerLeave={onPointerUp}
+      onClick={handleContainerClick}
     >
       <div
         ref={(el) => {
           gridDivRef.current = el
-          // Apply transform immediately on mount to avoid a flash at origin
           if (el) el.style.transform = `translate(${localPan.current.x}px, ${localPan.current.y}px) scale(${localZoom.current})`
         }}
         style={{
@@ -183,12 +213,25 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
               inPlacementMode={!!selectedTileId}
               isDm={isDm}
               onClick={() => handleHexClick(col, row)}
+              onDoubleClick={() => handleHexDoubleClick(col, row)}
               onDrop={e => handleDrop(e, col, row)}
               onDragOver={e => e.preventDefault()}
             />
           )
         })}
       </div>
+
+      {tooltipData && tooltipTile && tooltipType && (
+        <HexTooltip
+          tile={tooltipTile}
+          tileType={tooltipType}
+          col={tooltipTile.col}
+          row={tooltipTile.row}
+          clientX={tooltipData.clientX}
+          clientY={tooltipData.clientY}
+          isDm={isDm}
+        />
+      )}
 
       <MiniMap
         activeMap={activeMap}
