@@ -1,8 +1,9 @@
 'use client'
 import { createPortal } from 'react-dom'
 import { useGameStore } from '@/lib/store/game-store'
-import { colRowToKey } from '@/lib/hex-math'
+import { colRowToKey, neighborsOf } from '@/lib/hex-math'
 import { revealTile, deleteTile } from '@/actions/map'
+import { floodFillLayer } from '@/actions/layers'
 
 export default function HexContextMenu() {
   const contextMenu = useGameStore(s => s.contextMenu)
@@ -12,6 +13,10 @@ export default function HexContextMenu() {
   const tiles = useGameStore(s => s.tiles)
   const role = useGameStore(s => s.role)
   const activeMap = useGameStore(s => s.activeMap)
+  const selectedLayerId = useGameStore(s => s.selectedLayerId)
+  const selectedRegionId = useGameStore(s => s.selectedRegionId)
+  const hexLayerData = useGameStore(s => s.hexLayerData)
+  const upsertHexLayerAssignment = useGameStore(s => s.upsertHexLayerAssignment)
 
   if (!contextMenu) return null
 
@@ -43,6 +48,45 @@ export default function HexContextMenu() {
       setTiles(prev => prev.filter(t => !(t.col === col && t.row === row)))
     }
     close()
+  }
+
+  async function handleFloodFill() {
+    if (!contextMenu || !selectedLayerId || !selectedRegionId || !activeMap) return
+    setContextMenu(null)
+    const { col, row } = contextMenu
+
+    // Optimistic: BFS client-side with current store data
+    const layerData = hexLayerData.get(selectedLayerId) ?? new Map<string, string | null>()
+    const startKey = colRowToKey(col, row)
+    const startRegion = layerData.get(startKey) ?? null
+
+    const visited = new Set<string>()
+    const queue: [number, number][] = [[col, row]]
+    visited.add(startKey)
+
+    while (queue.length > 0) {
+      const [c, r] = queue.shift()!
+      for (const [nc, nr] of neighborsOf(c, r)) {
+        if (nc < 0 || nr < 0 || nc >= (activeMap.grid_cols) || nr >= (activeMap.grid_rows)) continue
+        const nk = colRowToKey(nc, nr)
+        if (visited.has(nk)) continue
+        if ((layerData.get(nk) ?? null) !== startRegion) continue
+        visited.add(nk)
+        queue.push([nc, nr])
+      }
+    }
+
+    for (const key of visited) {
+      const [c, r] = key.split(',').map(Number)
+      upsertHexLayerAssignment({ map_id: activeMap.id, layer_id: selectedLayerId, col: c, row: r, region_id: selectedRegionId })
+    }
+
+    floodFillLayer({
+      mapId: activeMap.id, layerId: selectedLayerId,
+      startCol: col, startRow: row,
+      regionId: selectedRegionId,
+      gridCols: activeMap.grid_cols, gridRows: activeMap.grid_rows,
+    })
   }
 
   const menuStyle: React.CSSProperties = {
@@ -99,6 +143,11 @@ export default function HexContextMenu() {
           <div style={{ ...itemStyle, color: 'oklch(0.45 0.015 260)', cursor: 'default' }}>
             Empty hex
           </div>
+        )}
+        {selectedRegionId && selectedLayerId && (
+          <button style={itemStyle} onClick={handleFloodFill}>
+            Flood Fill Region
+          </button>
         )}
       </div>
     </>
