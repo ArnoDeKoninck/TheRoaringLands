@@ -25,6 +25,7 @@ export interface TileType {
   color: string
   description: string | null
   produces: string | null
+  category: string | null
   order_index: number
 }
 
@@ -54,6 +55,31 @@ export interface CatalogueEntry {
   tag: StructureTag | null
   metadata: { ingredients?: RecipeIngredient[] } | null
   order_index: number
+}
+
+export interface MapLayer {
+  id: string
+  map_id: string
+  name: string
+  order_index: number
+  created_at: string
+}
+
+export interface LayerRegion {
+  id: string
+  layer_id: string
+  name: string
+  color: string
+  opacity: number
+  order_index: number
+}
+
+export interface HexLayerData {
+  map_id: string
+  layer_id: string
+  col: number
+  row: number
+  region_id: string | null
 }
 
 export interface PartyResources {
