@@ -76,3 +76,38 @@ export async function createMap({
   revalidatePath('/')
   return { map: data, error: null }
 }
+
+export async function deleteTile({
+  mapId, col, row,
+}: {
+  mapId: string
+  col: number
+  row: number
+}): Promise<{ error: string | null }> {
+  const supabase = await createClient()
+  const { error: authError } = await requireDm(supabase)
+  if (authError) return { error: authError }
+  const { error } = await supabase
+    .from('map_tiles')
+    .delete()
+    .eq('map_id', mapId)
+    .eq('col', col)
+    .eq('row', row)
+  if (error) return { error: error.message }
+  revalidatePath('/')
+  return { error: null }
+}
+
+export async function deleteMap({
+  mapId,
+}: {
+  mapId: string
+}): Promise<{ error: string | null }> {
+  const supabase = await createClient()
+  const { error: authError } = await requireDm(supabase)
+  if (authError) return { error: authError }
+  const { error } = await supabase.from('maps').delete().eq('id', mapId)
+  if (error) return { error: error.message }
+  revalidatePath('/')
+  return { error: null }
+}

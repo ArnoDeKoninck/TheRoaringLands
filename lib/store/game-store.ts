@@ -54,6 +54,7 @@ export interface GameState {
   setSelectedTileTypeId: (id: string | null) => void
   setCatalogueOpen: (open: boolean) => void
   setContextMenu: (menu: ContextMenuState | null) => void
+  removeMap: (mapId: string) => void
 }
 
 export function createGameSlice(
@@ -99,6 +100,7 @@ export function createGameSlice(
     setSelectedTileTypeId: (id) => set(() => ({ selectedTileTypeId: id })),
     setCatalogueOpen: (open) => set(() => ({ catalogueOpen: open })),
     setContextMenu: (menu) => set(() => ({ contextMenu: menu })),
+    removeMap: (mapId) => set((s) => ({ maps: s.maps.filter(m => m.id !== mapId) })),
   }
 }
 

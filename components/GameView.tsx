@@ -6,6 +6,7 @@ import TileInspector from './inspector/TileInspector'
 import CataloguePanel from './catalogue/CataloguePanel'
 import { colRowToKey } from '@/lib/hex-math'
 import { revealTile } from '@/actions/map'
+import { useRealtimeSync } from '@/hooks/use-realtime-sync'
 import type { MapTile, TileType, CatalogueEntry } from '@/lib/types'
 
 interface Props {
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export default function GameView({ initialTiles: _initialTiles, tileTypes, catalogueEntries }: Props) {
+  useRealtimeSync()
   const catalogueOpen = useGameStore(s => s.catalogueOpen)
   const role = useGameStore(s => s.role)
   const isDm = role === 'dm'

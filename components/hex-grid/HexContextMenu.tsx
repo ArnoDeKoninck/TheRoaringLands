@@ -2,7 +2,7 @@
 import { createPortal } from 'react-dom'
 import { useGameStore } from '@/lib/store/game-store'
 import { colRowToKey } from '@/lib/hex-math'
-import { revealTile } from '@/actions/map'
+import { revealTile, deleteTile } from '@/actions/map'
 
 export default function HexContextMenu() {
   const contextMenu = useGameStore(s => s.contextMenu)
@@ -11,6 +11,7 @@ export default function HexContextMenu() {
   const setTiles = useGameStore(s => s.setTiles)
   const tiles = useGameStore(s => s.tiles)
   const role = useGameStore(s => s.role)
+  const activeMap = useGameStore(s => s.activeMap)
 
   if (!contextMenu) return null
 
@@ -31,6 +32,15 @@ export default function HexContextMenu() {
     const result = await revealTile({ tileId: tile.id, revealed: !tile.revealed })
     if (result.tile) {
       setTiles(prev => prev.map(t => t.id === tile.id ? result.tile! : t))
+    }
+    close()
+  }
+
+  async function handleClearTile() {
+    if (!tile || !activeMap) return
+    const result = await deleteTile({ mapId: activeMap.id, col, row })
+    if (!result.error) {
+      setTiles(prev => prev.filter(t => !(t.col === col && t.row === row)))
     }
     close()
   }
@@ -76,9 +86,14 @@ export default function HexContextMenu() {
           </button>
         )}
         {isDm && tile && (
-          <button style={itemStyle} onClick={handleReveal}>
-            {tile.revealed ? 'Hide from players' : 'Reveal to players'}
-          </button>
+          <>
+            <button style={itemStyle} onClick={handleReveal}>
+              {tile.revealed ? 'Hide from players' : 'Reveal to players'}
+            </button>
+            <button style={{ ...itemStyle, color: 'oklch(0.65 0.15 25)' }} onClick={handleClearTile}>
+              Clear tile
+            </button>
+          </>
         )}
         {!tile && (
           <div style={{ ...itemStyle, color: 'oklch(0.45 0.015 260)', cursor: 'default' }}>
