@@ -1,5 +1,5 @@
 'use client'
-import { useGame } from '@/components/providers/GameProvider'
+import { useGameStore } from '@/lib/store/game-store'
 import type { TileType } from '@/lib/types'
 
 interface Props {
@@ -8,7 +8,8 @@ interface Props {
 }
 
 export default function TileCard({ tile, isDm }: Props) {
-  const { selectedTileId, setSelectedTileId } = useGame()
+  const selectedTileId = useGameStore(s => s.selectedTileTypeId)
+  const setSelectedTileId = useGameStore(s => s.setSelectedTileTypeId)
   const isActive = selectedTileId === tile.id
 
   function onDragStart(e: React.DragEvent) {

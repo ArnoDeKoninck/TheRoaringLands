@@ -1,8 +1,9 @@
 'use client'
-import { useGame } from '@/components/providers/GameProvider'
+import { useGameStore } from '@/lib/store/game-store'
 
 export default function ZoomControls() {
-  const { zoom, setZoom } = useGame()
+  const zoom = useGameStore(s => s.zoom)
+  const setZoom = useGameStore(s => s.setZoom)
   const btnStyle: React.CSSProperties = {
     width: '28px',
     height: '28px',

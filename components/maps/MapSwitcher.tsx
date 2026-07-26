@@ -1,14 +1,17 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useGame } from '@/components/providers/GameProvider'
+import { useGameStore } from '@/lib/store/game-store'
 import CreateMapModal from './CreateMapModal'
 import type { GameMap } from '@/lib/types'
 
 export default function MapSwitcher() {
   const router = useRouter()
-  const { maps: initialMaps, activeMap, setActiveMap, role } = useGame()
-  const [maps, setMaps] = useState<GameMap[]>(initialMaps)
+  const storeMaps = useGameStore(s => s.maps)
+  const activeMap = useGameStore(s => s.activeMap)
+  const setActiveMap = useGameStore(s => s.setActiveMap)
+  const role = useGameStore(s => s.role)
+  const [maps, setMaps] = useState<GameMap[]>(storeMaps)
   const [showCreate, setShowCreate] = useState(false)
   const isDm = role === 'dm'
 
@@ -44,7 +47,7 @@ export default function MapSwitcher() {
     <>
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
         <select
-          value={activeMap.id}
+          value={activeMap?.id ?? ''}
           onChange={e => handleMapChange(e.target.value)}
           style={selectStyle}
         >

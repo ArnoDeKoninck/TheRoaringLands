@@ -1,6 +1,6 @@
 'use client'
 import { useState, useMemo } from 'react'
-import { useGame } from './providers/GameProvider'
+import { useGameStore } from '@/lib/store/game-store'
 import HexGrid from './hex-grid/HexGrid'
 import TileInspector from './inspector/TileInspector'
 import CataloguePanel from './catalogue/CataloguePanel'
@@ -15,7 +15,8 @@ interface Props {
 }
 
 export default function GameView({ initialTiles, tileTypes, catalogueEntries }: Props) {
-  const { catalogueOpen, role } = useGame()
+  const catalogueOpen = useGameStore(s => s.catalogueOpen)
+  const role = useGameStore(s => s.role)
   const isDm = role === 'dm'
   const [tiles, setTiles] = useState<MapTile[]>(initialTiles)
   const [inspectedKey, setInspectedKey] = useState<string | null>(null)

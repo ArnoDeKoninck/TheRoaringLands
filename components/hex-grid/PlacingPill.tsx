@@ -1,5 +1,5 @@
 'use client'
-import { useGame } from '@/components/providers/GameProvider'
+import { useGameStore } from '@/lib/store/game-store'
 import type { TileType } from '@/lib/types'
 
 interface Props {
@@ -7,7 +7,8 @@ interface Props {
 }
 
 export default function PlacingPill({ tileTypes }: Props) {
-  const { selectedTileId, setSelectedTileId } = useGame()
+  const selectedTileId = useGameStore(s => s.selectedTileTypeId)
+  const setSelectedTileId = useGameStore(s => s.setSelectedTileTypeId)
   if (!selectedTileId) return null
   const tile = tileTypes.find(t => t.id === selectedTileId)
   if (!tile) return null

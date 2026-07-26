@@ -1,6 +1,6 @@
 'use client'
 import { useRef, useEffect, useMemo, useState } from 'react'
-import { useGame } from '@/components/providers/GameProvider'
+import { useGameStore } from '@/lib/store/game-store'
 import HexTile from './HexTile'
 import HexTooltip from './HexTooltip'
 import MiniMap from './MiniMap'
@@ -20,8 +20,16 @@ interface Props {
 }
 
 export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, inspectedKey }: Props) {
-  const { role, activeMap, selectedTileId, setSelectedTileId, zoom, setZoom, pan, setPan } = useGame()
+  const role = useGameStore(s => s.role)
+  const activeMap = useGameStore(s => s.activeMap)
+  const selectedTileId = useGameStore(s => s.selectedTileTypeId)
+  const setSelectedTileId = useGameStore(s => s.setSelectedTileTypeId)
+  const zoom = useGameStore(s => s.zoom)
+  const setZoom = useGameStore(s => s.setZoom)
+  const pan = useGameStore(s => s.pan)
+  const setPan = useGameStore(s => s.setPan)
   const isDm = role === 'dm'
+  if (!activeMap) return null
   const { grid_cols: cols, grid_rows: rows, hex_radius: radius } = activeMap
   const { width: gridW, height: gridH } = gridPixelSize(cols, rows, radius)
 
@@ -143,7 +151,7 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
     setTooltipData(null)
 
     if (tileId && isDm) {
-      const result = await placeTile({ mapId: activeMap.id, col, row, tileTypeId: tileId })
+      const result = await placeTile({ mapId: activeMap?.id ?? '', col, row, tileTypeId: tileId })
       if (result.tile) {
         setTiles(prev => {
           const next = prev.filter(t => !(t.col === col && t.row === row))

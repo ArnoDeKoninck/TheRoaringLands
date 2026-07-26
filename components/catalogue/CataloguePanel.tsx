@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { useGame } from '@/components/providers/GameProvider'
+import { useGameStore } from '@/lib/store/game-store'
 import TileCard from './TileCard'
 import RecipeCard from './RecipeCard'
 import StructureCard from './StructureCard'
@@ -24,7 +24,7 @@ interface Props {
 export default function CataloguePanel({ tileTypes, catalogueEntries }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('tiles')
   const [entries, setEntries] = useState<CatalogueEntry[]>(catalogueEntries)
-  const { role } = useGame()
+  const role = useGameStore(s => s.role)
   const isDm = role === 'dm'
 
   const recipes    = entries.filter(e => e.type === 'recipe')

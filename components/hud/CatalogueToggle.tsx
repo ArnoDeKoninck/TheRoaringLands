@@ -1,8 +1,9 @@
 'use client'
-import { useGame } from '@/components/providers/GameProvider'
+import { useGameStore } from '@/lib/store/game-store'
 
 export default function CatalogueToggle() {
-  const { catalogueOpen, setCatalogueOpen } = useGame()
+  const catalogueOpen = useGameStore(s => s.catalogueOpen)
+  const setCatalogueOpen = useGameStore(s => s.setCatalogueOpen)
   return (
     <button
       onClick={() => setCatalogueOpen(!catalogueOpen)}
