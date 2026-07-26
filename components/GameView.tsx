@@ -4,6 +4,7 @@ import { useGameStore } from '@/lib/store/game-store'
 import HexGrid from './hex-grid/HexGrid'
 import TileInspector from './inspector/TileInspector'
 import CataloguePanel from './catalogue/CataloguePanel'
+import LayersPanel from './layers/LayersPanel'
 import { colRowToKey } from '@/lib/hex-math'
 import { revealTile } from '@/actions/map'
 import { useRealtimeSync } from '@/hooks/use-realtime-sync'
@@ -18,6 +19,7 @@ interface Props {
 export default function GameView({ initialTiles: _initialTiles, tileTypes, catalogueEntries }: Props) {
   useRealtimeSync()
   const catalogueOpen = useGameStore(s => s.catalogueOpen)
+  const layerPanelOpen = useGameStore(s => s.layerPanelOpen)
   const role = useGameStore(s => s.role)
   const isDm = role === 'dm'
   const tiles = useGameStore(s => s.tiles)
@@ -45,6 +47,7 @@ export default function GameView({ initialTiles: _initialTiles, tileTypes, catal
   return (
     <div style={{ flex: 1, position: 'relative', display: 'flex', overflow: 'hidden' }}>
       <HexGrid />
+      {layerPanelOpen && <LayersPanel />}
       {inspectedTile && inspectedType && (
         <TileInspector
           tile={inspectedTile}
@@ -57,10 +60,7 @@ export default function GameView({ initialTiles: _initialTiles, tileTypes, catal
         />
       )}
       {catalogueOpen && (
-        <CataloguePanel
-          tileTypes={tileTypes}
-          catalogueEntries={catalogueEntries}
-        />
+        <CataloguePanel tileTypes={tileTypes} catalogueEntries={catalogueEntries} />
       )}
     </div>
   )

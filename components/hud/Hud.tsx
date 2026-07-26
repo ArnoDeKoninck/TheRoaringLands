@@ -2,6 +2,7 @@ import ResourcePill from './ResourcePill'
 import ZoomControls from './ZoomControls'
 import CatalogueToggle from './CatalogueToggle'
 import MapSwitcher from '@/components/maps/MapSwitcher'
+import LayersToggle from './LayersToggle'
 import DmResourceEditor from './DmResourceEditor'
 import { RESOURCE_CONFIG, type PartyResources } from '@/lib/types'
 
@@ -49,6 +50,7 @@ export default function Hud({ resources, mapId, isDm }: Props) {
       <div style={{ flex: 1 }} />
       <MapSwitcher />
       <ZoomControls />
+      <LayersToggle />
       <div style={{ width: '1px', height: '26px', background: 'oklch(1 0 0 / 0.08)' }} />
       <CatalogueToggle />
       {/* Avatar placeholder */}
