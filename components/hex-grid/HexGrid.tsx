@@ -1,15 +1,16 @@
 'use client'
 import { useRef, useEffect, useMemo, useState } from 'react'
 import { useGameStore } from '@/lib/store/game-store'
-import HexTile from './HexTile'
+import HexTile, { type LayerOverlay, type BorderLine } from './HexTile'
 import HexTooltip from './HexTooltip'
 import HexContextMenu from './HexContextMenu'
 import MiniMap from './MiniMap'
 import PlacingPill from './PlacingPill'
-import { hexToPixel, gridPixelSize, colRowToKey, hexDistance } from '@/lib/hex-math'
+import { hexToPixel, gridPixelSize, colRowToKey, hexDistance, neighborsOf } from '@/lib/hex-math'
 import { placeTile } from '@/actions/map'
 import { useMapInteractions } from '@/hooks/use-map-interactions'
 import { useKeyboardPan } from '@/hooks/use-keyboard-pan'
+import { HexIconDefs } from '@/lib/hex-icons'
 
 export default function HexGrid() {
   const role = useGameStore(s => s.role)
@@ -25,6 +26,10 @@ export default function HexGrid() {
   const zoom = useGameStore(s => s.zoom)
   const pan = useGameStore(s => s.pan)
   const setPan = useGameStore(s => s.setPan)
+  const mapLayers = useGameStore(s => s.mapLayers)
+  const layerRegions = useGameStore(s => s.layerRegions)
+  const hexLayerData = useGameStore(s => s.hexLayerData)
+  const activeLayerIds = useGameStore(s => s.activeLayerIds)
   const isDm = role === 'dm'
   const cols = activeMap?.grid_cols ?? 0
   const rows = activeMap?.grid_rows ?? 0
@@ -33,6 +38,52 @@ export default function HexGrid() {
 
   const tileMap = useMemo(() => new Map(tiles.map(t => [colRowToKey(t.col, t.row), t])), [tiles])
   const tileTypeMap = useMemo(() => new Map(tileTypes.map(t => [t.id, t])), [tileTypes])
+
+  // Build region lookup: regionId → LayerRegion
+  const regionMap = useMemo(() => new Map(layerRegions.map(r => [r.id, r])), [layerRegions])
+
+  // Active layers in display order
+  const activeLayers = useMemo(
+    () => mapLayers.filter(l => activeLayerIds.has(l.id)).sort((a, b) => a.order_index - b.order_index),
+    [mapLayers, activeLayerIds],
+  )
+
+  // Per-hex overlay + border data — recomputed when layer data changes
+  const hexLayerMeta = useMemo(() => {
+    const out = new Map<string, { overlays: LayerOverlay[]; borderLines: BorderLine[] }>()
+
+    for (const layer of activeLayers) {
+      const layerData = hexLayerData.get(layer.id)
+      if (!layerData) continue
+
+      for (const [key, regionId] of layerData) {
+        if (!regionId) continue
+        const region = regionMap.get(regionId)
+        if (!region) continue
+
+        if (!out.has(key)) out.set(key, { overlays: [], borderLines: [] })
+        const meta = out.get(key)!
+
+        meta.overlays.push({ color: region.color, opacity: region.opacity })
+
+        // Compute border lines: check 6 neighbors
+        const [colStr, rowStr] = key.split(',')
+        const col = parseInt(colStr)
+        const row = parseInt(rowStr)
+        const neighbors = neighborsOf(col, row)
+        neighbors.forEach(([nc, nr], neighborIdx) => {
+          const nKey = colRowToKey(nc, nr)
+          const nRegionId = layerData.get(nKey) ?? null
+          // Border when neighbor has a different region (including no region)
+          if (nRegionId !== regionId) {
+            meta.borderLines.push({ neighborIdx, color: region.color })
+          }
+        })
+      }
+    }
+
+    return out
+  }, [activeLayers, hexLayerData, regionMap])
 
   const [tooltipPos, setTooltipPos] = useState<{ clientX: number; clientY: number } | null>(null)
 
@@ -47,7 +98,6 @@ export default function HexGrid() {
     }
   }
 
-  // Sync external changes (minimap click, map switch, zoom buttons) to DOM
   useEffect(() => {
     localPan.current = pan
     localZoom.current = zoom
@@ -63,7 +113,6 @@ export default function HexGrid() {
 
   useKeyboardPan({ localPan, applyTransform })
 
-  // Compute tooltip position when inspectedKey changes
   useEffect(() => {
     if (!inspectedKey || !activeMap) { setTooltipPos(null); return }
     const [colStr, rowStr] = inspectedKey.split(',')
@@ -79,8 +128,11 @@ export default function HexGrid() {
     })
   }, [inspectedKey, radius])
 
-  // Keep flex space even before store hydrates so layout doesn't shift
-  if (!activeMap) return <div style={{ flex: 1, background: 'oklch(0.115 0.01 260)' }} />
+  if (!activeMap) return (
+    <div style={{ flex: 1, background: 'oklch(0.115 0.01 260)' }}>
+      <svg style={{ display: 'none' }}><HexIconDefs /></svg>
+    </div>
+  )
 
   function handleDrop(e: React.DragEvent, col: number, row: number) {
     e.preventDefault()
@@ -98,7 +150,6 @@ export default function HexGrid() {
     })
   }
 
-  // Build cell list — filter to circle for maps with radius_hexes
   const circRadius = activeMap.radius_hexes
   const circCenterCol = Math.floor(cols / 2)
   const circCenterRow = Math.floor(rows / 2)
@@ -128,38 +179,32 @@ export default function HexGrid() {
       onPointerLeave={onPointerUp}
       onContextMenu={onContextMenu}
     >
+      <svg style={{ display: 'none' }}><HexIconDefs /></svg>
+
       <div
         ref={(el) => {
           gridDivRef.current = el
           if (el) el.style.transform = `translate(${localPan.current.x}px, ${localPan.current.y}px) scale(${localZoom.current})`
         }}
-        style={{
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          width: gridW,
-          height: gridH,
-          transformOrigin: '0 0',
-        }}
+        style={{ position: 'absolute', left: 0, top: 0, width: gridW, height: gridH, transformOrigin: '0 0' }}
       >
         {hexes.map(({ col, row, key }) => {
           const { x, y } = hexToPixel(col, row, radius)
           const tile = tileMap.get(key) ?? null
           const tileType = tile ? (tileTypeMap.get(tile.tile_type_id) ?? null) : null
+          const meta = hexLayerMeta.get(key)
           return (
             <HexTile
               key={key}
-              x={x}
-              y={y}
-              col={col}
-              row={row}
-              radius={radius}
+              x={x} y={y} col={col} row={row} radius={radius}
               tileType={tileType}
               revealed={tile?.revealed ?? false}
               isInspected={key === inspectedKey}
               isSelected={selectedKeys.has(key)}
               inPlacementMode={!!selectedTileId}
               isDm={isDm}
+              layerOverlays={meta?.overlays ?? []}
+              borderLines={meta?.borderLines ?? []}
               onDrop={e => handleDrop(e, col, row)}
               onDragOver={e => e.preventDefault()}
             />
@@ -173,12 +218,9 @@ export default function HexGrid() {
         if (!tile || !type) return null
         return (
           <HexTooltip
-            tile={tile}
-            tileType={type}
-            col={tile.col}
-            row={tile.row}
-            clientX={tooltipPos.clientX}
-            clientY={tooltipPos.clientY}
+            tile={tile} tileType={type}
+            col={tile.col} row={tile.row}
+            clientX={tooltipPos.clientX} clientY={tooltipPos.clientY}
             isDm={isDm}
           />
         )
@@ -187,14 +229,8 @@ export default function HexGrid() {
       <HexContextMenu />
 
       <MiniMap
-        activeMap={activeMap}
-        tiles={tiles}
-        tileTypeMap={tileTypeMap}
-        pan={pan}
-        zoom={zoom}
-        containerRef={containerRef}
-        onPanTo={setPan}
-        isDm={isDm}
+        activeMap={activeMap} tiles={tiles} tileTypeMap={tileTypeMap}
+        pan={pan} zoom={zoom} containerRef={containerRef} onPanTo={setPan} isDm={isDm}
       />
 
       <PlacingPill tileTypes={tileTypes} />
