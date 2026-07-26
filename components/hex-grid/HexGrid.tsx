@@ -1,5 +1,5 @@
 'use client'
-import { useRef, useCallback, useState, useEffect, useMemo } from 'react'
+import { useRef, useCallback, useEffect, useMemo } from 'react'
 import { useGame } from '@/components/providers/GameProvider'
 import HexTile from './HexTile'
 import MiniMap from './MiniMap'
@@ -25,47 +25,66 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
   const tileMap = useMemo(() => new Map(tiles.map(t => [colRowToKey(t.col, t.row), t])), [tiles])
   const tileTypeMap = useMemo(() => new Map(tileTypes.map(t => [t.id, t])), [tileTypes])
 
-  // Pan drag state — use refs to avoid re-renders during drag
   const dragging = useRef(false)
   const dragStart = useRef({ x: 0, y: 0 })
   const panStart = useRef({ x: 0, y: 0 })
   const moved = useRef(false)
 
-  // Separate state for cursor so it triggers re-renders
-  const [isDragging, setIsDragging] = useState(false)
-  const zoomRef = useRef(zoom)
-  useEffect(() => { zoomRef.current = zoom }, [zoom])
-
   const containerRef = useRef<HTMLDivElement>(null)
+  const gridDivRef = useRef<HTMLDivElement>(null)
+
+  // Local refs track pan/zoom without triggering re-renders during drag/zoom
+  const localPan = useRef(pan)
+  const localZoom = useRef(zoom)
+
+  function applyTransform(p = localPan.current, z = localZoom.current) {
+    if (gridDivRef.current) {
+      gridDivRef.current.style.transform = `translate(${p.x}px, ${p.y}px) scale(${z})`
+    }
+  }
+
+  // Sync external pan/zoom changes (minimap click, zoom controls, map switch) to DOM
+  useEffect(() => {
+    localPan.current = pan
+    localZoom.current = zoom
+    applyTransform(pan, zoom)
+  }, [pan, zoom])
 
   const onPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     dragging.current = true
-    setIsDragging(true)
+    if (containerRef.current) containerRef.current.style.cursor = 'grabbing'
     moved.current = false
     dragStart.current = { x: e.clientX, y: e.clientY }
-    panStart.current = pan
+    panStart.current = { ...localPan.current }
     ;(e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId)
-  }, [pan])
+  }, [])
 
   const onPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragging.current) return
     const dx = e.clientX - dragStart.current.x
     const dy = e.clientY - dragStart.current.y
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved.current = true
-    setPan({ x: panStart.current.x + dx, y: panStart.current.y + dy })
-  }, [setPan])
+    const newPan = { x: panStart.current.x + dx, y: panStart.current.y + dy }
+    localPan.current = newPan
+    applyTransform(newPan)
+  }, [])
 
   const onPointerUp = useCallback(() => {
+    if (!dragging.current) return
     dragging.current = false
-    setIsDragging(false)
-  }, [])
+    if (containerRef.current) containerRef.current.style.cursor = 'grab'
+    setPan(localPan.current)
+  }, [setPan])
 
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
     function handleWheel(e: WheelEvent) {
       e.preventDefault()
-      setZoom(zoomRef.current + (e.deltaY > 0 ? -0.1 : 0.1))
+      const newZoom = Math.min(2.5, Math.max(0.4, localZoom.current + (e.deltaY > 0 ? -0.1 : 0.1)))
+      localZoom.current = newZoom
+      applyTransform(localPan.current, newZoom)
+      setZoom(newZoom)
     }
     el.addEventListener('wheel', handleWheel, { passive: false })
     return () => el.removeEventListener('wheel', handleWheel)
@@ -104,15 +123,15 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
     handleHexClick(col, row, tileId)
   }
 
-  // Build cell list — for circular maps filter to radius_hexes from center
+  // For circular maps filter to radius_hexes from center
   const circRadius = activeMap.radius_hexes
   const circCenterCol = Math.floor(cols / 2)
   const circCenterRow = Math.floor(rows / 2)
   const hexes: Array<{ col: number; row: number; key: string }> = []
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-      if (circRadius != null && hexDistance(col, row, circCenterCol, circCenterRow) > circRadius) continue
-      hexes.push({ col, row, key: colRowToKey(col, row) })
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (circRadius != null && hexDistance(c, r, circCenterCol, circCenterRow) > circRadius) continue
+      hexes.push({ col: c, row: r, key: colRowToKey(c, r) })
     }
   }
 
@@ -126,7 +145,7 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
         background: 'oklch(0.115 0.01 260)',
         backgroundImage: 'radial-gradient(oklch(1 0 0 / 0.045) 1px, transparent 1px)',
         backgroundSize: '26px 26px',
-        cursor: isDragging ? 'grabbing' : 'grab',
+        cursor: 'grab',
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -134,13 +153,17 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
       onPointerLeave={onPointerUp}
     >
       <div
+        ref={(el) => {
+          gridDivRef.current = el
+          // Apply transform immediately on mount to avoid a flash at origin
+          if (el) el.style.transform = `translate(${localPan.current.x}px, ${localPan.current.y}px) scale(${localZoom.current})`
+        }}
         style={{
           position: 'absolute',
           left: 0,
           top: 0,
           width: gridW,
           height: gridH,
-          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
           transformOrigin: '0 0',
         }}
       >
