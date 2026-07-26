@@ -4,13 +4,14 @@ import Hud from '@/components/hud/Hud'
 import GameView from '@/components/GameView'
 import type { PartyResources, MapTile, TileType, CatalogueEntry, Profile, Role } from '@/lib/types'
 
-export default async function GamePage() {
+export default async function GamePage({ searchParams }: { searchParams: Promise<{ mapId?: string }> }) {
+  const params = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: maps } = await supabase.from('maps').select('id').order('created_at').limit(1)
-  const mapId = maps?.[0]?.id ?? ''
+  const { data: maps } = await supabase.from('maps').select('id').order('created_at')
+  const mapId = params.mapId ?? maps?.[0]?.id ?? ''
 
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single<Pick<Profile, 'role'>>()
   const isDm = (profile?.role as Role) === 'dm'
@@ -24,7 +25,7 @@ export default async function GamePage() {
     supabase.from('map_tiles').select('*').eq('map_id', mapId),
     supabase.from('tile_types').select('*').order('order_index'),
     supabase.from('catalogue_entries').select('*').order('order_index'),
-    supabase.from('party_resources').select('*').eq('map_id', mapId).single<PartyResources>(),
+    supabase.from('party_resources').select('*').eq('map_id', mapId).maybeSingle<PartyResources>(),
   ])
 
   const emptyResources: PartyResources = { id: '', map_id: null, gold: 0, wood: 0, stone: 0, food: 0, iron: 0 }

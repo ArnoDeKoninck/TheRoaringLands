@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { MapTile, GameMap } from '@/lib/types'
+import { requireDm } from '@/lib/supabase/require-dm'
 
 export async function placeTile({
   mapId, col, row, tileTypeId,
@@ -13,6 +14,8 @@ export async function placeTile({
   tileTypeId: string
 }): Promise<{ tile: MapTile | null; error: string | null }> {
   const supabase = await createClient()
+  const { error: authError } = await requireDm(supabase)
+  if (authError) return { tile: null, error: authError }
   const { data, error } = await supabase
     .from('map_tiles')
     .upsert(
@@ -34,6 +37,8 @@ export async function revealTile({
   revealed: boolean
 }): Promise<{ tile: MapTile | null; error: string | null }> {
   const supabase = await createClient()
+  const { error: authError } = await requireDm(supabase)
+  if (authError) return { tile: null, error: authError }
   const { data, error } = await supabase
     .from('map_tiles')
     .update({ revealed })
@@ -55,6 +60,8 @@ export async function createMap({
   gridRows: number
 }): Promise<{ map: GameMap | null; error: string | null }> {
   const supabase = await createClient()
+  const { error: authError } = await requireDm(supabase)
+  if (authError) return { map: null, error: authError }
   const { data, error } = await supabase
     .from('maps')
     .insert({ name, type, grid_cols: gridCols, grid_rows: gridRows, hex_radius: 48 })
@@ -63,7 +70,9 @@ export async function createMap({
 
   if (error) return { map: null, error: error.message }
 
-  await supabase.from('party_resources').insert({ map_id: data.id })
+  if (data) {
+    await supabase.from('party_resources').insert({ map_id: data.id })
+  }
   revalidatePath('/')
   return { map: data, error: null }
 }

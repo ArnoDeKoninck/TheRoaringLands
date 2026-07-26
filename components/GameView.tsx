@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useGame } from './providers/GameProvider'
 import HexGrid from './hex-grid/HexGrid'
 import TileInspector from './inspector/TileInspector'
@@ -20,7 +20,7 @@ export default function GameView({ initialTiles, tileTypes, catalogueEntries }: 
   const [tiles, setTiles] = useState<MapTile[]>(initialTiles)
   const [inspectedKey, setInspectedKey] = useState<string | null>(null)
 
-  const tileTypeMap = new Map(tileTypes.map(t => [t.id, t]))
+  const tileTypeMap = useMemo(() => new Map(tileTypes.map(t => [t.id, t])), [tileTypes])
 
   const inspectedTile = inspectedKey
     ? tiles.find(t => colRowToKey(t.col, t.row) === inspectedKey) ?? null

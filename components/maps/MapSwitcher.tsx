@@ -1,10 +1,12 @@
 'use client'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useGame } from '@/components/providers/GameProvider'
 import CreateMapModal from './CreateMapModal'
 import type { GameMap } from '@/lib/types'
 
 export default function MapSwitcher() {
+  const router = useRouter()
   const { maps: initialMaps, activeMap, setActiveMap, role } = useGame()
   const [maps, setMaps] = useState<GameMap[]>(initialMaps)
   const [showCreate, setShowCreate] = useState(false)
@@ -12,9 +14,18 @@ export default function MapSwitcher() {
 
   if (!isDm && maps.length <= 1) return null
 
+  function handleMapChange(mapId: string) {
+    const m = maps.find((m: GameMap) => m.id === mapId)
+    if (m) {
+      setActiveMap(m)
+      router.push(`/?mapId=${mapId}`)
+    }
+  }
+
   function handleCreated(map: GameMap) {
     setMaps(prev => [...prev, map])
     setActiveMap(map)
+    router.push(`/?mapId=${map.id}`)
     setShowCreate(false)
   }
 
@@ -34,10 +45,7 @@ export default function MapSwitcher() {
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
         <select
           value={activeMap.id}
-          onChange={e => {
-            const m = maps.find((m: GameMap) => m.id === e.target.value)
-            if (m) setActiveMap(m)
-          }}
+          onChange={e => handleMapChange(e.target.value)}
           style={selectStyle}
         >
           {maps.map((m: GameMap) => (
@@ -59,7 +67,7 @@ export default function MapSwitcher() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              lineHeight: 1,
+              lineHeight: '1',
             }}
           >
             +

@@ -1,5 +1,5 @@
 'use client'
-import { useRef, useCallback } from 'react'
+import { useRef, useCallback, useState, useEffect, useMemo } from 'react'
 import { useGame } from '@/components/providers/GameProvider'
 import HexTile from './HexTile'
 import PlacingPill from './PlacingPill'
@@ -21,8 +21,8 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
   const { grid_cols: cols, grid_rows: rows, hex_radius: radius } = activeMap
   const { width: gridW, height: gridH } = gridPixelSize(cols, rows, radius)
 
-  const tileMap = new Map(tiles.map(t => [colRowToKey(t.col, t.row), t]))
-  const tileTypeMap = new Map(tileTypes.map(t => [t.id, t]))
+  const tileMap = useMemo(() => new Map(tiles.map(t => [colRowToKey(t.col, t.row), t])), [tiles])
+  const tileTypeMap = useMemo(() => new Map(tileTypes.map(t => [t.id, t])), [tileTypes])
 
   // Pan drag state — use refs to avoid re-renders during drag
   const dragging = useRef(false)
@@ -30,10 +30,16 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
   const panStart = useRef({ x: 0, y: 0 })
   const moved = useRef(false)
 
+  // Separate state for cursor so it triggers re-renders
+  const [isDragging, setIsDragging] = useState(false)
+
+  const containerRef = useRef<HTMLDivElement>(null)
+
   const onPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     // Only start drag on the background, not on SVG hex elements
     if ((e.target as Element).closest('svg')) return
     dragging.current = true
+    setIsDragging(true)
     moved.current = false
     dragStart.current = { x: e.clientX, y: e.clientY }
     panStart.current = pan
@@ -50,20 +56,27 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
 
   const onPointerUp = useCallback(() => {
     dragging.current = false
+    setIsDragging(false)
   }, [])
 
-  const onWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault()
-    setZoom(zoom + (e.deltaY > 0 ? -0.1 : 0.1))
-  }, [zoom, setZoom])
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    function handleWheel(e: WheelEvent) {
+      e.preventDefault()
+      setZoom(z => Math.min(2.5, Math.max(0.4, z + (e.deltaY > 0 ? -0.1 : 0.1))))
+    }
+    el.addEventListener('wheel', handleWheel, { passive: false })
+    return () => el.removeEventListener('wheel', handleWheel)
+  }, [setZoom])
 
-  async function handleHexClick(col: number, row: number) {
+  async function handleHexClick(col: number, row: number, overrideTileTypeId?: string) {
     if (moved.current) return
     const key = colRowToKey(col, row)
-    const existing = tileMap.get(key)
+    const tileId = overrideTileTypeId ?? selectedTileId
 
-    if (selectedTileId && isDm) {
-      const result = await placeTile({ mapId: activeMap.id, col, row, tileTypeId: selectedTileId })
+    if (tileId && isDm) {
+      const result = await placeTile({ mapId: activeMap.id, col, row, tileTypeId: tileId })
       if (result.tile) {
         setTiles(prev => {
           const next = prev.filter(t => !(t.col === col && t.row === row))
@@ -73,6 +86,7 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
       return
     }
 
+    const existing = tileMap.get(key)
     if (existing) {
       onTileInspect(key === inspectedKey ? null : key)
     } else {
@@ -81,12 +95,12 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
   }
 
   function handleDrop(e: React.DragEvent, col: number, row: number) {
+    e.preventDefault()
     if (!isDm) return
     const tileId = e.dataTransfer.getData('tileTypeId')
     if (!tileId) return
     setSelectedTileId(tileId)
-    // Use a small timeout so selectedTileId state is set before we click
-    setTimeout(() => handleHexClick(col, row), 0)
+    handleHexClick(col, row, tileId)
   }
 
   // Build cell list
@@ -99,6 +113,7 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
 
   return (
     <div
+      ref={containerRef}
       style={{
         flex: 1,
         position: 'relative',
@@ -106,13 +121,12 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
         background: 'oklch(0.115 0.01 260)',
         backgroundImage: 'radial-gradient(oklch(1 0 0 / 0.045) 1px, transparent 1px)',
         backgroundSize: '26px 26px',
-        cursor: dragging.current ? 'grabbing' : 'grab',
+        cursor: isDragging ? 'grabbing' : 'grab',
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerLeave={onPointerUp}
-      onWheel={onWheel}
     >
       <div
         style={{

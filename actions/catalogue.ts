@@ -3,12 +3,15 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { TileType, CatalogueEntry } from '@/lib/types'
+import { requireDm } from '@/lib/supabase/require-dm'
 
 export async function setEntryUnlocked(
   id: string,
   unlocked: boolean
 ): Promise<{ entry: CatalogueEntry | null; error: string | null }> {
   const supabase = await createClient()
+  const { error: authError } = await requireDm(supabase)
+  if (authError) return { entry: null, error: authError }
   const { data, error } = await supabase
     .from('catalogue_entries')
     .update({ unlocked })
@@ -28,6 +31,8 @@ export async function createTileType(data: {
   produces: string | null
 }): Promise<{ tileType: TileType | null; error: string | null }> {
   const supabase = await createClient()
+  const { error: authError } = await requireDm(supabase)
+  if (authError) return { tileType: null, error: authError }
   const { data: result, error } = await supabase
     .from('tile_types')
     .insert(data)
@@ -43,6 +48,8 @@ export async function updateTileType(
   data: Partial<Pick<TileType, 'name' | 'code' | 'color' | 'description' | 'produces'>>
 ): Promise<{ tileType: TileType | null; error: string | null }> {
   const supabase = await createClient()
+  const { error: authError } = await requireDm(supabase)
+  if (authError) return { tileType: null, error: authError }
   const { data: result, error } = await supabase
     .from('tile_types')
     .update(data)
@@ -62,6 +69,8 @@ export async function createEntry(data: {
   metadata: object | null
 }): Promise<{ entry: CatalogueEntry | null; error: string | null }> {
   const supabase = await createClient()
+  const { error: authError } = await requireDm(supabase)
+  if (authError) return { entry: null, error: authError }
   const { data: result, error } = await supabase
     .from('catalogue_entries')
     .insert({ ...data, unlocked: false })
