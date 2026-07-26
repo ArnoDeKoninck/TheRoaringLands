@@ -26,8 +26,9 @@ export default function HexGrid() {
   const pan = useGameStore(s => s.pan)
   const setPan = useGameStore(s => s.setPan)
   const isDm = role === 'dm'
-  if (!activeMap) return null
-  const { grid_cols: cols, grid_rows: rows, hex_radius: radius } = activeMap
+  const cols = activeMap?.grid_cols ?? 0
+  const rows = activeMap?.grid_rows ?? 0
+  const radius = activeMap?.hex_radius ?? 48
   const { width: gridW, height: gridH } = gridPixelSize(cols, rows, radius)
 
   const tileMap = useMemo(() => new Map(tiles.map(t => [colRowToKey(t.col, t.row), t])), [tiles])
@@ -61,6 +62,8 @@ export default function HexGrid() {
   })
 
   useKeyboardPan({ localPan, applyTransform })
+
+  if (!activeMap) return null
 
   // Compute tooltip position when inspectedKey changes
   useEffect(() => {
