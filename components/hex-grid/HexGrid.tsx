@@ -32,6 +32,8 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
 
   // Separate state for cursor so it triggers re-renders
   const [isDragging, setIsDragging] = useState(false)
+  const zoomRef = useRef(zoom)
+  useEffect(() => { zoomRef.current = zoom }, [zoom])
 
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -64,7 +66,7 @@ export default function HexGrid({ tiles, setTiles, tileTypes, onTileInspect, ins
     if (!el) return
     function handleWheel(e: WheelEvent) {
       e.preventDefault()
-      setZoom((z: number) => Math.min(2.5, Math.max(0.4, z + (e.deltaY > 0 ? -0.1 : 0.1))))
+      setZoom(zoomRef.current + (e.deltaY > 0 ? -0.1 : 0.1))
     }
     el.addEventListener('wheel', handleWheel, { passive: false })
     return () => el.removeEventListener('wheel', handleWheel)
