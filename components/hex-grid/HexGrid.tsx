@@ -79,7 +79,8 @@ export default function HexGrid() {
     })
   }, [inspectedKey, radius])
 
-  if (!activeMap) return null
+  // Keep flex space even before store hydrates so layout doesn't shift
+  if (!activeMap) return <div style={{ flex: 1, background: 'oklch(0.115 0.01 260)' }} />
 
   function handleDrop(e: React.DragEvent, col: number, row: number) {
     e.preventDefault()
