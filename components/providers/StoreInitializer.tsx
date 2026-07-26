@@ -1,7 +1,7 @@
 'use client'
 import { useRef } from 'react'
 import { useGameStore } from '@/lib/store/game-store'
-import type { GameMap, MapTile, TileType, CatalogueEntry } from '@/lib/types'
+import type { GameMap, MapTile, TileType, CatalogueEntry, MapLayer, LayerRegion, HexLayerData } from '@/lib/types'
 
 interface Props {
   role: 'dm' | 'player'
@@ -11,16 +11,23 @@ interface Props {
   resources: Record<string, number>
   activeMap: GameMap
   tiles: MapTile[]
+  mapLayers: MapLayer[]
+  layerRegions: LayerRegion[]
+  hexLayerData: HexLayerData[]
 }
 
-export default function StoreInitializer({ role, maps, tileTypes, catalogueEntries, resources, activeMap, tiles }: Props) {
+export default function StoreInitializer({
+  role, maps, tileTypes, catalogueEntries, resources, activeMap, tiles,
+  mapLayers, layerRegions, hexLayerData,
+}: Props) {
   const lastMapId = useRef<string | null>(null)
 
-  // Synchronous during render — store is hydrated before any child renders,
-  // eliminating the useEffect-after-paint flash. Re-runs on map switch.
   if (lastMapId.current !== activeMap.id) {
     lastMapId.current = activeMap.id
-    useGameStore.getState().hydrate({ role, maps, tileTypes, catalogueEntries, resources, activeMap, tiles })
+    useGameStore.getState().hydrate({
+      role, maps, tileTypes, catalogueEntries, resources, activeMap, tiles,
+      mapLayers, layerRegions, hexLayerData,
+    })
   }
 
   return null
