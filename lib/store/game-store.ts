@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import type { GameMap, MapTile, TileType, CatalogueEntry } from '@/lib/types'
+import type { GameMap, MapTile, TileType, CatalogueEntry, MapLayer, LayerRegion, HexLayerData } from '@/lib/types'
+import { colRowToKey } from '@/lib/hex-math'
 
 export interface ContextMenuState {
   col: number
@@ -33,6 +34,16 @@ export interface GameState {
   catalogueOpen: boolean
   contextMenu: ContextMenuState | null
 
+  // Layers
+  mapLayers: MapLayer[]
+  layerRegions: LayerRegion[]
+  // layerId → (colRowKey → regionId)
+  hexLayerData: Map<string, Map<string, string | null>>
+  activeLayerIds: Set<string>
+  layerPanelOpen: boolean
+  selectedLayerId: string | null
+  selectedRegionId: string | null
+
   // Actions
   hydrate: (data: {
     role: 'dm' | 'player'
@@ -42,6 +53,9 @@ export interface GameState {
     resources: Record<string, number>
     activeMap: GameMap
     tiles: MapTile[]
+    mapLayers: MapLayer[]
+    layerRegions: LayerRegion[]
+    hexLayerData: HexLayerData[]
   }) => void
   setActiveMap: (map: GameMap) => void
   setTiles: (updater: MapTile[] | ((prev: MapTile[]) => MapTile[])) => void
@@ -55,6 +69,26 @@ export interface GameState {
   setCatalogueOpen: (open: boolean) => void
   setContextMenu: (menu: ContextMenuState | null) => void
   removeMap: (mapId: string) => void
+  // Layer actions
+  toggleLayerId: (layerId: string) => void
+  setSelectedLayerId: (id: string | null) => void
+  setSelectedRegionId: (id: string | null) => void
+  setLayerPanelOpen: (open: boolean) => void
+  upsertHexLayerAssignment: (entry: HexLayerData) => void
+  removeHexLayerAssignment: (key: { layer_id: string; col: number; row: number }) => void
+  addLayer: (layer: MapLayer) => void
+  removeLayer: (layerId: string) => void
+  addRegion: (region: LayerRegion) => void
+  removeRegion: (regionId: string) => void
+}
+
+function buildHexLayerDataMap(rows: HexLayerData[]): Map<string, Map<string, string | null>> {
+  const out = new Map<string, Map<string, string | null>>()
+  for (const row of rows) {
+    if (!out.has(row.layer_id)) out.set(row.layer_id, new Map())
+    out.get(row.layer_id)!.set(colRowToKey(row.col, row.row), row.region_id)
+  }
+  return out
 }
 
 export function createGameSlice(
@@ -76,8 +110,22 @@ export function createGameSlice(
     selectedTileTypeId: null,
     catalogueOpen: true,
     contextMenu: null,
+    mapLayers: [],
+    layerRegions: [],
+    hexLayerData: new Map(),
+    activeLayerIds: new Set(),
+    layerPanelOpen: false,
+    selectedLayerId: null,
+    selectedRegionId: null,
 
-    hydrate: (data) => set(() => ({ ...data, selectedKeys: new Set(), inspectedKey: null, contextMenu: null })),
+    hydrate: (data) => set(() => ({
+      ...data,
+      selectedKeys: new Set(),
+      inspectedKey: null,
+      contextMenu: null,
+      hexLayerData: buildHexLayerDataMap(data.hexLayerData),
+      activeLayerIds: new Set(data.mapLayers.map(l => l.id)),
+    })),
     setActiveMap: (map) => set(() => ({ activeMap: map, tiles: [], selectedKeys: new Set(), inspectedKey: null })),
     setTiles: (updater) => set((s) => ({ tiles: typeof updater === 'function' ? updater(s.tiles) : updater })),
     setPan: (pan) => set(() => ({ pan })),
@@ -101,6 +149,56 @@ export function createGameSlice(
     setCatalogueOpen: (open) => set(() => ({ catalogueOpen: open })),
     setContextMenu: (menu) => set(() => ({ contextMenu: menu })),
     removeMap: (mapId) => set((s) => ({ maps: s.maps.filter(m => m.id !== mapId) })),
+
+    toggleLayerId: (layerId) => set((s) => {
+      const next = new Set(s.activeLayerIds)
+      next.has(layerId) ? next.delete(layerId) : next.add(layerId)
+      return { activeLayerIds: next }
+    }),
+    setSelectedLayerId: (id) => set(() => ({ selectedLayerId: id })),
+    setSelectedRegionId: (id) => set(() => ({ selectedRegionId: id })),
+    setLayerPanelOpen: (open) => set(() => ({ layerPanelOpen: open })),
+
+    upsertHexLayerAssignment: (entry) => set((s) => {
+      const next = new Map(s.hexLayerData)
+      if (!next.has(entry.layer_id)) next.set(entry.layer_id, new Map())
+      const inner = new Map(next.get(entry.layer_id)!)
+      inner.set(colRowToKey(entry.col, entry.row), entry.region_id)
+      next.set(entry.layer_id, inner)
+      return { hexLayerData: next }
+    }),
+
+    removeHexLayerAssignment: ({ layer_id, col, row }) => set((s) => {
+      const next = new Map(s.hexLayerData)
+      if (!next.has(layer_id)) return {}
+      const inner = new Map(next.get(layer_id)!)
+      inner.delete(colRowToKey(col, row))
+      next.set(layer_id, inner)
+      return { hexLayerData: next }
+    }),
+
+    addLayer: (layer) => set((s) => ({
+      mapLayers: [...s.mapLayers, layer],
+      activeLayerIds: new Set([...s.activeLayerIds, layer.id]),
+    })),
+
+    removeLayer: (layerId) => set((s) => {
+      const next = new Map(s.hexLayerData)
+      next.delete(layerId)
+      const nextActive = new Set(s.activeLayerIds)
+      nextActive.delete(layerId)
+      return {
+        mapLayers: s.mapLayers.filter(l => l.id !== layerId),
+        layerRegions: s.layerRegions.filter(r => r.layer_id !== layerId),
+        hexLayerData: next,
+        activeLayerIds: nextActive,
+        selectedLayerId: s.selectedLayerId === layerId ? null : s.selectedLayerId,
+      }
+    }),
+
+    addRegion: (region) => set((s) => ({ layerRegions: [...s.layerRegions, region] })),
+
+    removeRegion: (regionId) => set((s) => ({ layerRegions: s.layerRegions.filter(r => r.id !== regionId) })),
   }
 }
 
