@@ -10,7 +10,6 @@ import { hexToPixel, gridPixelSize, colRowToKey, hexDistance, neighborsOf } from
 import { placeTile } from '@/actions/map'
 import { useMapInteractions } from '@/hooks/use-map-interactions'
 import { useKeyboardPan } from '@/hooks/use-keyboard-pan'
-import { HexIconDefs } from '@/lib/hex-icons'
 
 export default function HexGrid() {
   const role = useGameStore(s => s.role)
@@ -86,6 +85,7 @@ export default function HexGrid() {
   }, [activeLayers, hexLayerData, regionMap])
 
   const [tooltipPos, setTooltipPos] = useState<{ clientX: number; clientY: number } | null>(null)
+  const [dragOverKey, setDragOverKey] = useState<string | null>(null)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const gridDivRef = useRef<HTMLDivElement>(null)
@@ -129,13 +129,12 @@ export default function HexGrid() {
   }, [inspectedKey, radius])
 
   if (!activeMap) return (
-    <div style={{ flex: 1, background: 'oklch(0.115 0.01 260)' }}>
-      <svg style={{ display: 'none' }}><HexIconDefs /></svg>
-    </div>
+    <div style={{ flex: 1, background: 'oklch(0.115 0.01 260)' }} />
   )
 
   function handleDrop(e: React.DragEvent, col: number, row: number) {
     e.preventDefault()
+    setDragOverKey(null)
     if (!isDm) return
     const tileId = e.dataTransfer.getData('tileTypeId')
     if (!tileId) return
@@ -148,6 +147,12 @@ export default function HexGrid() {
         })
       }
     })
+  }
+
+  function handleContainerDragLeave(e: React.DragEvent) {
+    if (!containerRef.current?.contains(e.relatedTarget as Node)) {
+      setDragOverKey(null)
+    }
   }
 
   const circRadius = activeMap.radius_hexes
@@ -178,8 +183,8 @@ export default function HexGrid() {
       onPointerUp={onPointerUp}
       onPointerLeave={onPointerUp}
       onContextMenu={onContextMenu}
+      onDragLeave={handleContainerDragLeave}
     >
-      <svg style={{ display: 'none' }}><HexIconDefs /></svg>
 
       <div
         ref={(el) => {
@@ -205,8 +210,11 @@ export default function HexGrid() {
               isDm={isDm}
               layerOverlays={meta?.overlays ?? []}
               borderLines={meta?.borderLines ?? []}
+              isDragOver={dragOverKey === key}
+              dragPreviewColor={dragOverKey === key ? (tileTypeMap.get(selectedTileId ?? '')?.color ?? null) : null}
               onDrop={e => handleDrop(e, col, row)}
               onDragOver={e => e.preventDefault()}
+              onDragEnter={() => setDragOverKey(key)}
             />
           )
         })}

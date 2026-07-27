@@ -1,5 +1,5 @@
 import { hexPolygonPoints } from '@/lib/hex-math'
-import { HEX_ICON_CODES } from '@/lib/hex-icons'
+import { HEX_ICON_MAP } from '@/lib/hex-icons'
 import type { TileType } from '@/lib/types'
 
 export interface LayerOverlay {
@@ -26,8 +26,11 @@ interface Props {
   isDm: boolean
   layerOverlays: LayerOverlay[]
   borderLines: BorderLine[]
+  isDragOver: boolean
+  dragPreviewColor: string | null
   onDrop: (e: React.DragEvent) => void
   onDragOver: (e: React.DragEvent) => void
+  onDragEnter: (e: React.DragEvent) => void
 }
 
 // For each neighbor index (order from neighborsOf: E,W,NE,NW,SE,SW),
@@ -43,13 +46,13 @@ const NEIGHBOR_EDGE_VERTS: [number, number][] = [
 
 export default function HexTile({
   x, y, col, row, radius, tileType, revealed, isInspected, isSelected,
-  inPlacementMode, isDm, layerOverlays, borderLines, onDrop, onDragOver,
+  inPlacementMode, isDm, layerOverlays, borderLines,
+  isDragOver, dragPreviewColor, onDrop, onDragOver, onDragEnter,
 }: Props) {
   const w = radius * Math.sqrt(3)
   const h = 2 * radius
   const points = hexPolygonPoints(radius)
 
-  // Precompute the 6 vertex positions
   const verts: [number, number][] = [
     [w / 2, 0],
     [w, h / 4],
@@ -59,26 +62,23 @@ export default function HexTile({
     [0, h / 4],
   ]
 
-  let fill = 'transparent'
-  let stroke = 'oklch(1 0 0 / 0.14)'
-  let strokeWidth = 1
-
-  if (tileType) {
-    if (isDm || revealed) fill = tileType.color
-  } else if (inPlacementMode && isDm) {
-    fill = 'oklch(0.78 0.15 85 / 0.08)'
-  }
-
-  if (isSelected && !isInspected) {
-    stroke = 'oklch(0.78 0.15 200 / 0.7)'
-    strokeWidth = 2
-  }
-  if (isInspected) {
-    stroke = 'oklch(0.78 0.15 200)'
-    strokeWidth = 3
-  }
-
+  const iconPath = tileType ? (HEX_ICON_MAP[tileType.code] ?? null) : null
   const isDmFogged = isDm && tileType !== null && !revealed
+  const showIcon = iconPath !== null && (isDm || revealed)
+
+  // Base polygon fill: only shown for empty hexes in placement mode
+  let baseFill = 'transparent'
+  if (inPlacementMode && isDm && !showIcon && !isDragOver) {
+    baseFill = 'oklch(0.78 0.15 85 / 0.08)'
+  }
+
+  // Selection/inspection stroke
+  let selectionStroke = 'none'
+  let selectionWidth = 0
+  if (!isDragOver) {
+    if (isInspected) { selectionStroke = 'oklch(0.78 0.15 200)'; selectionWidth = 3 }
+    else if (isSelected) { selectionStroke = 'oklch(0.78 0.15 200 / 0.7)'; selectionWidth = 2 }
+  }
 
   return (
     <svg
@@ -90,17 +90,24 @@ export default function HexTile({
       style={{ position: 'absolute', left: x, top: y, cursor: 'inherit', userSelect: 'none' }}
       onDrop={onDrop}
       onDragOver={onDragOver}
+      onDragEnter={onDragEnter}
     >
-      {/* Base terrain polygon */}
-      <polygon
-        points={points}
-        fill={fill}
-        stroke={stroke}
-        strokeWidth={strokeWidth}
-        opacity={isDmFogged ? 0.4 : 1}
-      />
+      {/* 1. Base fill (placement mode tint for empty hexes) */}
+      <polygon points={points} fill={baseFill} stroke="none" />
 
-      {/* Layer overlay polygons (stacked, semi-transparent) */}
+      {/* 2. Tile icon — self-contained hex SVG, sliced to fill exact tile bounds */}
+      {showIcon && (
+        <image
+          href={iconPath!}
+          x={0} y={0}
+          width={w} height={h}
+          preserveAspectRatio="xMidYMid slice"
+          opacity={isDmFogged ? 0.4 : 1}
+          style={{ pointerEvents: 'none' }}
+        />
+      )}
+
+      {/* 3. Layer overlays (semi-transparent colored regions) */}
       {layerOverlays.map((overlay, i) => (
         <polygon
           key={i}
@@ -112,7 +119,7 @@ export default function HexTile({
         />
       ))}
 
-      {/* Region border lines */}
+      {/* 4. Region border lines */}
       {borderLines.map((bl, i) => {
         const [vi1, vi2] = NEIGHBOR_EDGE_VERTS[bl.neighborIdx]
         const [x1, y1] = verts[vi1]
@@ -129,34 +136,35 @@ export default function HexTile({
         )
       })}
 
-      {/* Terrain icon or code */}
-      {tileType && (isDm || revealed) && (
-        HEX_ICON_CODES.has(tileType.code) ? (
-          <use
-            href={`#hex-${tileType.code}`}
-            x={w * 0.25}
-            y={h * 0.25}
-            width={w * 0.5}
-            height={h * 0.5}
-            color="oklch(0.12 0.01 260)"
-            opacity={isDmFogged ? 0.6 : 1}
-            style={{ pointerEvents: 'none' }}
-          />
-        ) : (
-          <text
-            x={w / 2}
-            y={h / 2 + 5}
-            textAnchor="middle"
-            fontFamily="ui-monospace, monospace"
-            fontSize="15"
-            fontWeight="700"
-            fill="oklch(0.12 0.01 260)"
-            opacity={isDmFogged ? 0.6 : 1}
-            style={{ pointerEvents: 'none' }}
-          >
-            {tileType.code}
-          </text>
-        )
+      {/* 5. Drag-over: color overlay + teal ring */}
+      {isDragOver && dragPreviewColor && (
+        <polygon
+          points={points}
+          fill={dragPreviewColor}
+          fillOpacity={0.45}
+          stroke="none"
+          style={{ pointerEvents: 'none' }}
+        />
+      )}
+
+      {/* 6. Grid border (always visible, sits on top of image) */}
+      <polygon
+        points={points}
+        fill="none"
+        stroke={isDragOver ? 'oklch(0.78 0.15 200)' : 'oklch(1 0 0 / 0.14)'}
+        strokeWidth={isDragOver ? 3 : 1}
+        style={{ pointerEvents: 'none' }}
+      />
+
+      {/* 7. Selection / inspection ring */}
+      {(selectionWidth > 0) && (
+        <polygon
+          points={points}
+          fill="none"
+          stroke={selectionStroke}
+          strokeWidth={selectionWidth}
+          style={{ pointerEvents: 'none' }}
+        />
       )}
     </svg>
   )

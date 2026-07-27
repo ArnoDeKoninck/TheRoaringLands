@@ -33,6 +33,7 @@ export default function PlacingPill({ tileTypes }: Props) {
       Placing: {tile.name}
       <button
         onClick={() => setSelectedTileId(null)}
+        onPointerDown={e => e.stopPropagation()}
         style={{
           background: 'oklch(0.14 0.02 85 / 0.2)',
           border: 'none',
