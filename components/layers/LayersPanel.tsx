@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useGameStore } from '@/lib/store/game-store'
-import { createLayer, deleteLayer, createRegion, deleteRegion } from '@/actions/layers'
+import { syncLayerData } from '@/actions/layers'
 
 export default function LayersPanel() {
   const role = useGameStore(s => s.role)
@@ -9,9 +9,11 @@ export default function LayersPanel() {
   const activeMap = useGameStore(s => s.activeMap)
   const mapLayers = useGameStore(s => s.mapLayers)
   const layerRegions = useGameStore(s => s.layerRegions)
+  const hexLayerData = useGameStore(s => s.hexLayerData)
   const activeLayerIds = useGameStore(s => s.activeLayerIds)
   const selectedLayerId = useGameStore(s => s.selectedLayerId)
   const selectedRegionId = useGameStore(s => s.selectedRegionId)
+  const hasPendingChanges = useGameStore(s => s.hasPendingChanges)
   const toggleLayerId = useGameStore(s => s.toggleLayerId)
   const setSelectedLayerId = useGameStore(s => s.setSelectedLayerId)
   const setSelectedRegionId = useGameStore(s => s.setSelectedRegionId)
@@ -19,37 +21,54 @@ export default function LayersPanel() {
   const removeLayerFromStore = useGameStore(s => s.removeLayer)
   const addRegion = useGameStore(s => s.addRegion)
   const removeRegionFromStore = useGameStore(s => s.removeRegion)
+  const markDirty = useGameStore(s => s.markDirty)
+  const markClean = useGameStore(s => s.markClean)
 
   const [newLayerName, setNewLayerName] = useState('')
   const [newRegionName, setNewRegionName] = useState('')
   const [newRegionColor, setNewRegionColor] = useState('#4488cc')
   const [addingRegionToLayer, setAddingRegionToLayer] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
 
-  async function handleCreateLayer() {
+  function handleCreateLayer() {
     if (!newLayerName.trim() || !activeMap) return
-    const { layer } = await createLayer({ mapId: activeMap.id, name: newLayerName.trim() })
-    if (layer) { addLayer(layer); setNewLayerName('') }
-  }
-
-  async function handleDeleteLayer(layerId: string) {
-    const { error } = await deleteLayer({ layerId })
-    if (!error) removeLayerFromStore(layerId)
-  }
-
-  async function handleCreateRegion(layerId: string) {
-    if (!newRegionName.trim()) return
-    const { region } = await createRegion({ layerId, name: newRegionName.trim(), color: newRegionColor })
-    if (region) {
-      addRegion(region)
-      setNewRegionName('')
-      setNewRegionColor('#4488cc')
-      setAddingRegionToLayer(null)
+    const layer = {
+      id: crypto.randomUUID(),
+      map_id: activeMap.id,
+      name: newLayerName.trim(),
+      order_index: mapLayers.length,
+      created_at: new Date().toISOString(),
     }
+    addLayer(layer)
+    markDirty()
+    setNewLayerName('')
   }
 
-  async function handleDeleteRegion(regionId: string) {
-    const { error } = await deleteRegion({ regionId })
-    if (!error) removeRegionFromStore(regionId)
+  function handleDeleteLayer(layerId: string) {
+    removeLayerFromStore(layerId)
+    markDirty()
+  }
+
+  function handleCreateRegion(layerId: string) {
+    if (!newRegionName.trim()) return
+    const region = {
+      id: crypto.randomUUID(),
+      layer_id: layerId,
+      name: newRegionName.trim(),
+      color: newRegionColor,
+      opacity: 0.4,
+      order_index: layerRegions.filter(r => r.layer_id === layerId).length,
+    }
+    addRegion(region)
+    markDirty()
+    setNewRegionName('')
+    setNewRegionColor('#4488cc')
+    setAddingRegionToLayer(null)
+  }
+
+  function handleDeleteRegion(regionId: string) {
+    removeRegionFromStore(regionId)
+    markDirty()
   }
 
   function handleSelectRegion(layerId: string, regionId: string) {
@@ -60,6 +79,23 @@ export default function LayersPanel() {
       setSelectedLayerId(layerId)
       setSelectedRegionId(regionId)
     }
+  }
+
+  async function handleSave() {
+    if (!activeMap) return
+    setSaving(true)
+    const hexAssignments: { layer_id: string; col: number; row: number; region_id: string }[] = []
+    for (const [layerId, innerMap] of hexLayerData) {
+      for (const [key, regionId] of innerMap) {
+        if (regionId !== null) {
+          const [col, row] = key.split(',').map(Number)
+          hexAssignments.push({ layer_id: layerId, col, row, region_id: regionId })
+        }
+      }
+    }
+    const { error } = await syncLayerData({ mapId: activeMap.id, layers: mapLayers, regions: layerRegions, hexAssignments })
+    if (!error) markClean()
+    setSaving(false)
   }
 
   const sorted = [...mapLayers].sort((a, b) => a.order_index - b.order_index)
@@ -93,11 +129,28 @@ export default function LayersPanel() {
         <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'oklch(0.65 0.02 260)' }}>
           Layers
         </span>
-        {selectedRegionId && (
-          <span style={{ fontSize: '10.5px', color: 'oklch(0.78 0.15 85)', fontWeight: 600 }}>
-            Painting active
-          </span>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {selectedRegionId && (
+            <span style={{ fontSize: '10.5px', color: 'oklch(0.78 0.15 85)', fontWeight: 600 }}>
+              Painting active
+            </span>
+          )}
+          {isDm && hasPendingChanges && (
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              style={{
+                padding: '3px 10px', border: 'none', borderRadius: '5px',
+                background: saving ? 'oklch(0.4 0.01 260)' : 'oklch(0.78 0.15 85 / 0.2)',
+                color: saving ? 'oklch(0.5 0.01 260)' : 'oklch(0.78 0.15 85)',
+                cursor: saving ? 'default' : 'pointer',
+                fontSize: '10.5px', fontWeight: 700,
+              }}
+            >
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Layer list */}
@@ -113,7 +166,6 @@ export default function LayersPanel() {
                 padding: '7px 10px',
                 background: 'oklch(0.215 0.015 260)',
               }}>
-                {/* Visibility toggle */}
                 <button
                   onClick={() => toggleLayerId(layer.id)}
                   title={isActive ? 'Hide layer' : 'Show layer'}

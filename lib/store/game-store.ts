@@ -2,6 +2,11 @@ import { create } from 'zustand'
 import type { GameMap, MapTile, TileType, CatalogueEntry, MapLayer, LayerRegion, HexLayerData } from '@/lib/types'
 import { colRowToKey } from '@/lib/hex-math'
 
+export interface PaintPreview {
+  color: string
+  hexes: Array<{ key: string; x: number; y: number }>
+}
+
 export interface ContextMenuState {
   col: number
   row: number
@@ -43,6 +48,8 @@ export interface GameState {
   layerPanelOpen: boolean
   selectedLayerId: string | null
   selectedRegionId: string | null
+  paintPreview: PaintPreview | null
+  hasPendingChanges: boolean
 
   // Actions
   hydrate: (data: {
@@ -75,7 +82,11 @@ export interface GameState {
   setSelectedRegionId: (id: string | null) => void
   setLayerPanelOpen: (open: boolean) => void
   upsertHexLayerAssignment: (entry: HexLayerData) => void
+  upsertBatchHexLayerAssignments: (entries: HexLayerData[]) => void
   removeHexLayerAssignment: (key: { layer_id: string; col: number; row: number }) => void
+  setPaintPreview: (preview: PaintPreview | null) => void
+  markDirty: () => void
+  markClean: () => void
   addLayer: (layer: MapLayer) => void
   removeLayer: (layerId: string) => void
   addRegion: (region: LayerRegion) => void
@@ -117,6 +128,8 @@ export function createGameSlice(
     layerPanelOpen: false,
     selectedLayerId: null,
     selectedRegionId: null,
+    paintPreview: null,
+    hasPendingChanges: false,
 
     hydrate: (data) => set(() => ({
       ...data,
@@ -167,6 +180,26 @@ export function createGameSlice(
       next.set(entry.layer_id, inner)
       return { hexLayerData: next }
     }),
+
+    upsertBatchHexLayerAssignments: (entries) => set((s) => {
+      if (entries.length === 0) return {}
+      const next = new Map(s.hexLayerData)
+      const byLayer = new Map<string, HexLayerData[]>()
+      for (const e of entries) {
+        if (!byLayer.has(e.layer_id)) byLayer.set(e.layer_id, [])
+        byLayer.get(e.layer_id)!.push(e)
+      }
+      for (const [layerId, layerEntries] of byLayer) {
+        const inner = new Map(next.get(layerId) ?? new Map<string, string | null>())
+        for (const e of layerEntries) inner.set(colRowToKey(e.col, e.row), e.region_id)
+        next.set(layerId, inner)
+      }
+      return { hexLayerData: next }
+    }),
+
+    setPaintPreview: (preview) => set(() => ({ paintPreview: preview })),
+    markDirty: () => set(() => ({ hasPendingChanges: true })),
+    markClean: () => set(() => ({ hasPendingChanges: false })),
 
     removeHexLayerAssignment: ({ layer_id, col, row }) => set((s) => {
       const next = new Map(s.hexLayerData)

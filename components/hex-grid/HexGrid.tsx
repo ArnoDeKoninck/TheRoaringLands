@@ -6,6 +6,7 @@ import HexTooltip from './HexTooltip'
 import HexContextMenu from './HexContextMenu'
 import MiniMap from './MiniMap'
 import PlacingPill from './PlacingPill'
+import PaintPreviewOverlay from './PaintPreviewOverlay'
 import { hexToPixel, gridPixelSize, colRowToKey, hexDistance, neighborsOf } from '@/lib/hex-math'
 import { placeTile } from '@/actions/map'
 import { useMapInteractions } from '@/hooks/use-map-interactions'
@@ -218,6 +219,7 @@ export default function HexGrid() {
             />
           )
         })}
+        <PaintPreviewOverlay />
       </div>
 
       {inspectedKey && tooltipPos && (() => {

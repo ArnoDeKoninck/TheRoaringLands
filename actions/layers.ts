@@ -94,6 +94,69 @@ export async function paintHex({
   return { entry: data, error: null }
 }
 
+export async function syncLayerData({
+  mapId, layers, regions, hexAssignments,
+}: {
+  mapId: string
+  layers: MapLayer[]
+  regions: LayerRegion[]
+  hexAssignments: { layer_id: string; col: number; row: number; region_id: string }[]
+}): Promise<{ error: string | null }> {
+  const supabase = await createClient()
+  const { error: authError } = await requireDm(supabase)
+  if (authError) return { error: authError }
+
+  // Delete all layers for this map (cascades to layer_regions and hex_layer_data)
+  const { error: delError } = await supabase.from('map_layers').delete().eq('map_id', mapId)
+  if (delError) return { error: delError.message }
+
+  if (layers.length > 0) {
+    const { error } = await supabase.from('map_layers').insert(
+      layers.map(l => ({ id: l.id, map_id: l.map_id, name: l.name, order_index: l.order_index, created_at: l.created_at })),
+    )
+    if (error) return { error: error.message }
+  }
+
+  if (regions.length > 0) {
+    const { error } = await supabase.from('layer_regions').insert(
+      regions.map(r => ({ id: r.id, layer_id: r.layer_id, name: r.name, color: r.color, opacity: r.opacity, order_index: r.order_index })),
+    )
+    if (error) return { error: error.message }
+  }
+
+  if (hexAssignments.length > 0) {
+    const { error } = await supabase.from('hex_layer_data').insert(
+      hexAssignments.map(h => ({ map_id: mapId, layer_id: h.layer_id, col: h.col, row: h.row, region_id: h.region_id })),
+    )
+    if (error) return { error: error.message }
+  }
+
+  return { error: null }
+}
+
+export async function paintHexBatch({
+  mapId, layerId, hexes, regionId,
+}: {
+  mapId: string
+  layerId: string
+  hexes: { col: number; row: number }[]
+  regionId: string
+}): Promise<{ count: number; error: string | null }> {
+  const supabase = await createClient()
+  const { error: authError } = await requireDm(supabase)
+  if (authError) return { count: 0, error: authError }
+  if (hexes.length === 0) return { count: 0, error: null }
+
+  const { error } = await supabase
+    .from('hex_layer_data')
+    .upsert(
+      hexes.map(({ col, row }) => ({ map_id: mapId, layer_id: layerId, col, row, region_id: regionId })),
+      { onConflict: 'map_id,layer_id,col,row' },
+    )
+  if (error) return { count: 0, error: error.message }
+  return { count: hexes.length, error: null }
+}
+
 export async function floodFillLayer({
   mapId, layerId, startCol, startRow, regionId, gridCols, gridRows,
 }: {

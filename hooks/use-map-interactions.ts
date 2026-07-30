@@ -1,8 +1,8 @@
 import { useRef, useEffect, useCallback } from 'react'
 import { useGameStore } from '@/lib/store/game-store'
-import { colRowToKey } from '@/lib/hex-math'
+import { colRowToKey, hexToPixel } from '@/lib/hex-math'
 import { placeTile } from '@/actions/map'
-import { paintHex } from '@/actions/layers'
+import type { PaintPreview } from '@/lib/store/game-store'
 
 export function getHexKeyFromElement(el: Element): string | null {
   const svgEl = el.closest('[data-col]')
@@ -34,7 +34,11 @@ export function useMapInteractions({ containerRef, localPan, localZoom, applyTra
   const selectedTileTypeId = useGameStore(s => s.selectedTileTypeId)
   const selectedLayerId = useGameStore(s => s.selectedLayerId)
   const selectedRegionId = useGameStore(s => s.selectedRegionId)
+  const layerRegions = useGameStore(s => s.layerRegions)
   const upsertHexLayerAssignment = useGameStore(s => s.upsertHexLayerAssignment)
+  const upsertBatchHexLayerAssignments = useGameStore(s => s.upsertBatchHexLayerAssignments)
+  const setPaintPreview = useGameStore(s => s.setPaintPreview)
+  const markDirty = useGameStore(s => s.markDirty)
 
   const isDm = role === 'dm'
 
@@ -47,6 +51,9 @@ export function useMapInteractions({ containerRef, localPan, localZoom, applyTra
   const lastClick = useRef<{ time: number; key: string }>({ time: 0, key: '' })
   const shiftHeld = useRef(false)
   const lastPaintedKey = useRef<string | null>(null)
+  const pendingBrushHexes = useRef<{ col: number; row: number }[]>([])
+  const pendingBrushKeys = useRef<Set<string>>(new Set())
+  const pendingBrushPreview = useRef<PaintPreview['hexes']>([])
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -64,11 +71,10 @@ export function useMapInteractions({ containerRef, localPan, localZoom, applyTra
     }
   }, [clearSelection, setContextMenu])
 
-  async function doPaintHex(col: number, row: number) {
+  function doPaintHex(col: number, row: number) {
     if (!isDm || !activeMap || !selectedLayerId || !selectedRegionId) return
-    // Optimistic update
     upsertHexLayerAssignment({ map_id: activeMap.id, layer_id: selectedLayerId, col, row, region_id: selectedRegionId })
-    paintHex({ mapId: activeMap.id, layerId: selectedLayerId, col, row, regionId: selectedRegionId })
+    markDirty()
   }
 
   const onPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
@@ -83,7 +89,20 @@ export function useMapInteractions({ containerRef, localPan, localZoom, applyTra
       e.preventDefault()
       return
     }
-    if (e.button === 2) return
+    if (e.button === 2) {
+      if (selectedRegionId) {
+        // Pan with right-click while in paint mode
+        isMiddleMouse.current = true
+        dragging.current = true
+        moved.current = false
+        dragStart.current = { x: e.clientX, y: e.clientY }
+        panStart.current = { ...localPan.current }
+        if (containerRef.current) containerRef.current.style.cursor = 'grabbing'
+        ;(e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId)
+        e.preventDefault()
+      }
+      return
+    }
     isMiddleMouse.current = false
     pointerDownTarget.current = e.target as Element
     dragging.current = true
@@ -92,7 +111,7 @@ export function useMapInteractions({ containerRef, localPan, localZoom, applyTra
     dragStart.current = { x: e.clientX, y: e.clientY }
     panStart.current = { ...localPan.current }
     ;(e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId)
-  }, [containerRef, localPan])
+  }, [containerRef, localPan, selectedRegionId])
 
   const onPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragging.current) return
@@ -114,19 +133,29 @@ export function useMapInteractions({ containerRef, localPan, localZoom, applyTra
       }
     }
 
-    // Layer paint brush: shift+drag when region selected
+    // Layer paint brush: shift+drag — accumulate into pending batch, show preview overlay
     if (shiftHeld.current && !isMiddleMouse.current && selectedRegionId && moved.current) {
       const el = document.elementFromPoint(e.clientX, e.clientY)
       if (el) {
         const key = getHexKeyFromElement(el)
-        if (key && key !== lastPaintedKey.current) {
+        if (key && !pendingBrushKeys.current.has(key)) {
           lastPaintedKey.current = key
           const [colStr, rowStr] = key.split(',')
-          doPaintHex(parseInt(colStr), parseInt(rowStr))
+          const col = parseInt(colStr)
+          const row = parseInt(rowStr)
+          pendingBrushKeys.current.add(key)
+          pendingBrushHexes.current.push({ col, row })
+          const radius = activeMap?.hex_radius ?? 48
+          const pos = hexToPixel(col, row, radius)
+          pendingBrushPreview.current.push({ key, x: pos.x, y: pos.y })
+          const region = layerRegions.find(r => r.id === selectedRegionId)
+          if (region) {
+            setPaintPreview({ color: region.color, hexes: pendingBrushPreview.current.slice() })
+          }
         }
       }
     }
-  }, [localPan, applyTransform, paintSelect, selectedRegionId])
+  }, [localPan, applyTransform, paintSelect, selectedRegionId, layerRegions, setPaintPreview, activeMap])
 
   const onPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragging.current) return
@@ -135,6 +164,20 @@ export function useMapInteractions({ containerRef, localPan, localZoom, applyTra
     isMiddleMouse.current = false
     if (containerRef.current) containerRef.current.style.cursor = 'crosshair'
     setPan(localPan.current)
+
+    // Flush batched brush stroke
+    if (pendingBrushHexes.current.length > 0 && selectedLayerId && selectedRegionId && activeMap && isDm) {
+      const hexes = pendingBrushHexes.current.slice()
+      pendingBrushHexes.current.length = 0
+      pendingBrushKeys.current.clear()
+      pendingBrushPreview.current.length = 0
+      const entries = hexes.map(({ col, row }) => ({
+        map_id: activeMap.id, layer_id: selectedLayerId, col, row, region_id: selectedRegionId,
+      }))
+      upsertBatchHexLayerAssignments(entries)
+      setPaintPreview(null)
+      markDirty()
+    }
 
     if (wasMid || moved.current) return
 
@@ -178,16 +221,17 @@ export function useMapInteractions({ containerRef, localPan, localZoom, applyTra
     }
 
     selectHex(key, ctrl)
-  }, [containerRef, localPan, setPan, clearSelection, setInspectedKey, selectHex, selectedTileTypeId, selectedRegionId, selectedLayerId, isDm, activeMap, setTiles, upsertHexLayerAssignment])
+  }, [containerRef, localPan, setPan, clearSelection, setInspectedKey, selectHex, selectedTileTypeId, selectedRegionId, selectedLayerId, isDm, activeMap, setTiles, upsertHexLayerAssignment, upsertBatchHexLayerAssignments, setPaintPreview, markDirty])
 
   const onContextMenu = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     e.preventDefault()
+    if (selectedRegionId) return  // right-click pans in paint mode; no context menu
     const target = e.target as Element
     const key = getHexKeyFromElement(target)
     if (!key) { setContextMenu(null); return }
     const [colStr, rowStr] = key.split(',')
     setContextMenu({ col: parseInt(colStr), row: parseInt(rowStr), clientX: e.clientX, clientY: e.clientY })
-  }, [setContextMenu])
+  }, [setContextMenu, selectedRegionId])
 
   const onWheel = useCallback((e: WheelEvent) => {
     e.preventDefault()

@@ -1,5 +1,5 @@
 'use client'
-import { useMemo } from 'react'
+import { useMemo, useEffect } from 'react'
 import { useGameStore } from '@/lib/store/game-store'
 import HexGrid from './hex-grid/HexGrid'
 import TileInspector from './inspector/TileInspector'
@@ -18,6 +18,15 @@ interface Props {
 
 export default function GameView({ initialTiles: _initialTiles, tileTypes, catalogueEntries }: Props) {
   useRealtimeSync()
+  const hasPendingChanges = useGameStore(s => s.hasPendingChanges)
+  useEffect(() => {
+    if (!hasPendingChanges) return
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault()
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [hasPendingChanges])
   const catalogueOpen = useGameStore(s => s.catalogueOpen)
   const layerPanelOpen = useGameStore(s => s.layerPanelOpen)
   const role = useGameStore(s => s.role)
